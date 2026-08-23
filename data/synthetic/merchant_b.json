@@ -1,0 +1,11 @@
+[
+  {
+    "customerId": "B-201",
+    "orderId": "ORD-B-1",
+    "amount": "240.00",
+    "paymentMethod": "credit card",
+    "timestamp": "2026/08/23 09:00:00",
+    "currency": "EUR",
+    "transactionStatus": "settled"
+  }
+]

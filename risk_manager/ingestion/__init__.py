@@ -1,0 +1,1 @@
+"""Input connectors. Connectors return source records without business logic."""

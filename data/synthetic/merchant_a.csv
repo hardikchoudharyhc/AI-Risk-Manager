@@ -1,0 +1,2 @@
+cust_id,order_id,order_total,pay_type,order_dt,currency,transaction_status
+A-101,ORD-A-1,125.50,upi,2026-08-23T08:00:00Z,usd,completed
