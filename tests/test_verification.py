@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 
 import pytest
+import shap
 
 from data.synthetic.dataset_generator import create_synthetic_dataset
 from risk_manager.features import FeatureEngine
@@ -141,3 +142,25 @@ def test_explanation_payload_contains_top_features(engine_and_transactions):
     assert isinstance(result.explanation.top_features, list)
     assert len(result.explanation.top_features) >= 1
     assert "feature" in result.explanation.top_features[0]
+
+
+def test_shap_dependency_is_installed_and_importable():
+    assert getattr(shap, "__version__", None) is not None
+
+
+def test_shap_explanations_are_used_for_all_verifiers(engine_and_transactions):
+    engine, txns = engine_and_transactions
+    service = VerificationService(feature_engine=engine)
+
+    cases = [
+        ("return_abuse", txns[2]),
+        ("transaction_fraud", txns[2]),
+        ("fraud_spike", txns[2]),
+        ("abuse_ring", txns[0]),
+    ]
+
+    for case_type, txn in cases:
+        result = service.verify(case_type, txn, detector_confidence=0.70)
+        assert result.explanation.available is True
+        assert result.explanation.method == "shap"
+        assert len(result.explanation.top_features) > 0

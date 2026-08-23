@@ -211,8 +211,9 @@ Each verifier combines three evidence channels:
 2. ML evidence: verifier-local logistic model probability score.
 3. Historical evidence: customer/entity history signal from canonical data.
 
-SHAP is used as an explanation layer where available. If SHAP is unavailable in runtime,
-the verifier falls back to coefficient-based model contribution explanations.
+SHAP is the default explanation layer in the project environment.
+Coefficient-based explanation is retained only as an emergency fallback for runtime
+environments where SHAP cannot be loaded.
 
 ### Verification Output Contract
 
