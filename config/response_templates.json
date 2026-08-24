@@ -1,0 +1,138 @@
+{
+  "version": "1.0.0",
+  "templates": {
+    "APPROVE": {
+      "default": {
+        "action_code": "STANDARD_APPROVAL",
+        "action_type": "ALLOW",
+        "message": "Transaction approved under standard policy.",
+        "instructions": {
+          "allow_fulfillment": true,
+          "require_extra_auth": false,
+          "flag_for_review": false,
+          "rate_limit": false
+        }
+      }
+    },
+    "MANUAL_REVIEW": {
+      "return_abuse": {
+        "action_code": "FLAG_RETURN_FOR_STAFF_REVIEW",
+        "action_type": "QUEUE_MANUAL_REVIEW",
+        "message": "Potential return abuse detected. Hold refund pending manual receipt and item verification.",
+        "instructions": {
+          "allow_fulfillment": false,
+          "require_extra_auth": true,
+          "flag_for_review": true,
+          "review_queue": "return_abuse_analysts",
+          "review_priority": "MEDIUM"
+        }
+      },
+      "transaction_fraud": {
+        "action_code": "STEP_UP_AUTHENTICATION_AND_REVIEW",
+        "action_type": "QUEUE_MANUAL_REVIEW",
+        "message": "Suspicious transaction characteristics detected. Require step-up 2FA/3DS authentication.",
+        "instructions": {
+          "allow_fulfillment": false,
+          "require_extra_auth": true,
+          "flag_for_review": true,
+          "review_queue": "fraud_investigation_team",
+          "review_priority": "HIGH"
+        }
+      },
+      "fraud_spike": {
+        "action_code": "ALERT_OPS_TEAM_FOR_REVIEW",
+        "action_type": "ALERT_AND_QUEUE",
+        "message": "Elevated transaction velocity / anomaly pattern detected. Notify security operations.",
+        "instructions": {
+          "allow_fulfillment": true,
+          "require_extra_auth": false,
+          "flag_for_review": true,
+          "review_queue": "secops_traffic_monitoring",
+          "review_priority": "HIGH"
+        }
+      },
+      "abuse_ring": {
+        "action_code": "INVESTIGATION_CASE_QUEUE",
+        "action_type": "QUEUE_MANUAL_REVIEW",
+        "message": "Coordinated multi-account/device linkage detected. Create ring investigation case.",
+        "instructions": {
+          "allow_fulfillment": false,
+          "require_extra_auth": true,
+          "flag_for_review": true,
+          "review_queue": "abuse_ring_investigators",
+          "review_priority": "CRITICAL"
+        }
+      },
+      "default": {
+        "action_code": "GENERAL_MANUAL_REVIEW",
+        "action_type": "QUEUE_MANUAL_REVIEW",
+        "message": "Risk assessment warrants manual evaluation before finalizing.",
+        "instructions": {
+          "allow_fulfillment": false,
+          "require_extra_auth": true,
+          "flag_for_review": true,
+          "review_queue": "general_risk_queue",
+          "review_priority": "MEDIUM"
+        }
+      }
+    },
+    "DEFENSIVE_ACTION": {
+      "return_abuse": {
+        "action_code": "SUSPEND_RETURN_PRIVILEGES",
+        "action_type": "DEFENSIVE_CONTROL",
+        "message": "High-confidence return abuse. Restrict instant return privileges; require verified drop-off.",
+        "instructions": {
+          "allow_fulfillment": false,
+          "block_transaction": true,
+          "restrict_return_method": "IN_PERSON_WITH_ID",
+          "notify_merchant_security": true
+        }
+      },
+      "transaction_fraud": {
+        "action_code": "DECLINE_AND_NOTIFY",
+        "action_type": "DEFENSIVE_CONTROL",
+        "message": "High-confidence transaction fraud. Defensively decline authorization and log event.",
+        "instructions": {
+          "allow_fulfillment": false,
+          "block_transaction": true,
+          "advise_customer_action": "CONTACT_ISSUING_BANK",
+          "notify_merchant_security": true
+        }
+      },
+      "fraud_spike": {
+        "action_code": "THROTTLE_VELOCITY_AND_ALERT_SECURITY",
+        "action_type": "DEFENSIVE_CONTROL",
+        "message": "Severe anomaly spike detected. Engage rate limiting and CAPTCHA challenge on gateway.",
+        "instructions": {
+          "allow_fulfillment": false,
+          "block_transaction": false,
+          "enable_captcha_challenge": true,
+          "rate_limit_ip_range": true,
+          "notify_merchant_security": true
+        }
+      },
+      "abuse_ring": {
+        "action_code": "QUARANTINE_LINKED_ENTITIES",
+        "action_type": "DEFENSIVE_CONTROL",
+        "message": "Organized fraud ring activity detected. Quarantine linked device and payment tokens.",
+        "instructions": {
+          "allow_fulfillment": false,
+          "block_transaction": true,
+          "quarantine_entities": true,
+          "revoke_promo_benefits": true,
+          "notify_merchant_security": true
+        }
+      },
+      "default": {
+        "action_code": "GENERIC_DEFENSIVE_HOLD",
+        "action_type": "DEFENSIVE_CONTROL",
+        "message": "High risk threshold exceeded. Defensive action taken to prevent loss.",
+        "instructions": {
+          "allow_fulfillment": false,
+          "block_transaction": true,
+          "notify_merchant_security": true
+        }
+      }
+    }
+  }
+}

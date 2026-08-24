@@ -318,3 +318,37 @@ Tests cover:
 - uncertainty-safe manual review behavior
 - expected-loss calculation correctness
 - end-to-end detector/verifier/decision integration
+
+## Milestone 6 — Auto-Responder Layer & Audit Logging
+
+Implements an automated, policy-driven defensive auto-responder layer and audit logger on top of the Decision Engine output.
+
+### Key Capabilities
+
+- **Strict Decision Consumption**: Consumes only Decision Engine results; never overrides detector, verifier, or decision-engine outputs.
+- **Defense-Only Action Enforcement**: Strictly non-offensive actions tailored to the four risk classes (`return_abuse`, `transaction_fraud`, `fraud_spike`, `abuse_ring`).
+- **Deterministic Response Templates**: Configurable templates defined in [config/response_templates.json](config/response_templates.json) mapping decisions and risk classes to specific machine instructions and user messages.
+- **Event Idempotency**: `IdempotencyStore` caches `(merchant_id, event_id)` responses to prevent duplicate defense execution on replay.
+- **Complete Audit Trail**: `AuditLogger` generates auditable records including evidence references, rationale, model/rule/policy/template versions, with support for JSONL persistence, human overrides, and final outcome tracking.
+- **Safe Fallback Handling**: Gracefully handles missing evidence, edge flags, and unknown case types.
+
+### M6 Modules
+
+```
+risk_manager/responder/
+  ├── types.py        # ResponseResult, ResponseAction, AuditRecord
+  ├── templates.py    # Deterministic template loader and resolver
+  ├── idempotency.py  # Thread-safe event idempotency store
+  ├── audit.py        # Auditing, override tracking, and JSONL logging
+  ├── service.py      # AutoResponder orchestrator
+  └── __init__.py
+```
+
+### M6 Testing
+
+Tests cover:
+- Template loading, resolution, and unknown case fallbacks
+- Routing for all 4 risk classes under `DEFENSIVE_ACTION` and `MANUAL_REVIEW`
+- Event idempotency and duplicate replay prevention
+- Audit logging, version tracking, human override, and final outcome recording
+- End-to-end M1 through M6 pipeline integration
