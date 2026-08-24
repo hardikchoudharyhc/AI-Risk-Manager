@@ -1,0 +1,71 @@
+{
+  "version": "1.0.0",
+  "default_policy": "standard",
+  "merchant_policy_map": {
+    "merchant_a": "standard",
+    "merchant_b": "strict",
+    "merchant_c": "balanced"
+  },
+  "policies": {
+    "standard": {
+      "thresholds": {
+        "approve_max_risk": 0.35,
+        "defensive_min_risk": 0.75,
+        "min_auto_confidence": 0.60,
+        "emergency_defensive_risk": 0.90
+      },
+      "costs": {
+        "false_positive_cost": 40.0,
+        "false_negative_cost": 200.0,
+        "manual_review_cost": 15.0,
+        "manual_review_false_negative_rate": 0.20,
+        "manual_review_false_positive_rate": 0.10
+      }
+    },
+    "strict": {
+      "thresholds": {
+        "approve_max_risk": 0.25,
+        "defensive_min_risk": 0.65,
+        "min_auto_confidence": 0.65,
+        "emergency_defensive_risk": 0.88
+      },
+      "costs": {
+        "false_positive_cost": 30.0,
+        "false_negative_cost": 260.0,
+        "manual_review_cost": 20.0,
+        "manual_review_false_negative_rate": 0.15,
+        "manual_review_false_positive_rate": 0.08,
+        "case_costs": {
+          "abuse_ring": {
+            "false_negative_cost": 500.0,
+            "false_positive_cost": 60.0
+          },
+          "transaction_fraud": {
+            "false_negative_cost": 350.0
+          }
+        }
+      }
+    },
+    "balanced": {
+      "thresholds": {
+        "approve_max_risk": 0.40,
+        "defensive_min_risk": 0.80,
+        "min_auto_confidence": 0.55,
+        "emergency_defensive_risk": 0.92
+      },
+      "costs": {
+        "false_positive_cost": 50.0,
+        "false_negative_cost": 180.0,
+        "manual_review_cost": 12.0,
+        "manual_review_false_negative_rate": 0.25,
+        "manual_review_false_positive_rate": 0.12,
+        "case_costs": {
+          "return_abuse": {
+            "false_positive_cost": 25.0,
+            "false_negative_cost": 120.0
+          }
+        }
+      }
+    }
+  }
+}

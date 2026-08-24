@@ -255,3 +255,66 @@ Includes:
 - M2 feature tests
 - M3 detector tests
 - M4 verifier unit/integration tests
+
+## Milestone 5 — Cost-Aware Decision Engine
+
+Adds a configuration-driven decision layer that consumes detector and verifier outputs,
+computes expected loss per action, and returns the safest low-loss action.
+
+### Supported Decisions
+
+- APPROVE
+- MANUAL_REVIEW
+- DEFENSIVE_ACTION
+
+### Inputs Used
+
+- detector result (case type, confidence, probabilities, model version)
+- verifier result (verification status, risk score, confidence, evidence, rules, versions)
+- merchant policy thresholds and costs
+
+### Configuration-Driven Policy
+
+Policy file: [config/merchant_policies.json](config/merchant_policies.json)
+
+Defines:
+- merchant-to-policy mapping
+- risk thresholds
+- confidence thresholds
+- false-positive and false-negative costs
+- manual-review residual error/cost assumptions
+
+No decision thresholds or FP/FN costs are hard-coded in business flow.
+
+### Expected Loss Model
+
+- APPROVE loss = risk_probability * false_negative_cost
+- DEFENSIVE_ACTION loss = (1 - risk_probability) * false_positive_cost
+- MANUAL_REVIEW loss = review_cost + residual FN + residual FP
+
+Decision selection is restricted by policy/uncertainty guardrails, then minimizes expected loss.
+
+### Uncertainty and Edge-Case Safety
+
+- Missing customer or low-history entities reduce confidence.
+- Missing features/links are flagged and trigger conservative routing.
+- Low-confidence cases default to MANUAL_REVIEW unless emergency-risk threshold is exceeded.
+
+### M5 Modules
+
+```
+risk_manager/decision/
+  ├── policy.py       # Policy registry and config loading
+  ├── engine.py       # Cost-aware decision logic
+  ├── types.py        # Decision result contract
+  └── __init__.py
+```
+
+### M5 Testing
+
+Tests cover:
+- policy loading and merchant resolution
+- decision contract
+- uncertainty-safe manual review behavior
+- expected-loss calculation correctness
+- end-to-end detector/verifier/decision integration
