@@ -352,3 +352,69 @@ Tests cover:
 - Event idempotency and duplicate replay prevention
 - Audit logging, version tracking, human override, and final outcome recording
 - End-to-end M1 through M6 pipeline integration
+
+## Milestone 7 — End-to-End Pipeline Demo
+
+Presentation-ready demonstration of the complete AI Risk Manager defense-only pipeline across heterogeneous merchant inputs and all 4 risk classes.
+
+### Complete Pipeline Flow
+
+```
+Heterogeneous Ingestion (CSV / JSON / REST API)
+        ↓
+Data Normalization & Validation (Canonical Data Model)
+        ↓
+Feature Engineering (Leakage-free Customer/Velocity/Graph Features)
+        ↓
+4-Class Case Detector (Random Forest Multi-Class Classification)
+        ↓
+Specialized Verifier + SHAP (Rule Checks + Feature Contribution Explanations)
+        ↓
+Cost-Aware Decision Engine (Expected Loss Minimization + Merchant Policies)
+        ↓
+Auto-Responder (Deterministic Action Template Selection + Idempotency)
+        ↓
+Mock Action Adapter (Safe Simulated External Execution & Receipts)
+        ↓
+Audit Trail (Comprehensive Audit Record Generation)
+```
+
+### Running the Demo
+
+Execute the demo script via the CLI:
+
+```bash
+./.venv/bin/python -m risk_manager.demo
+```
+
+### Demonstration Scenarios Included
+
+1. **Return Abuse (`merchant_a` via CSV)**:
+   - Evaluates excessive return velocity / high return value ratios.
+   - Triggers `ReturnAbuseVerifier` with SHAP explanations.
+   - Minimizes expected loss under `standard` policy.
+   - Executes simulated response: `FLAG_RETURN_FOR_STAFF_REVIEW` (holding instant refund and generating barcode drop-off ticket).
+
+2. **Transaction Fraud (`merchant_b` via JSON)**:
+   - Evaluates high transaction velocity and card authorization patterns.
+   - Triggers `TransactionFraudVerifier` with SHAP explanations.
+   - Minimizes expected loss under `strict` policy.
+   - Executes simulated response: `STEP_UP_AUTHENTICATION_AND_REVIEW` (dispatching 3DS OTP challenge and queueing review).
+
+3. **Fraud Spike (`merchant_a` via CSV)**:
+   - Evaluates gateway traffic velocity anomalies against 24h baselines.
+   - Triggers `FraudSpikeVerifier` with deviation metrics.
+   - Executes simulated response: `ALERT_OPS_TEAM_FOR_REVIEW` (dispatching SecOps real-time alert).
+
+4. **Abuse Ring (`merchant_c` via REST API)**:
+   - Evaluates multi-device linkage and graph connection density.
+   - Triggers `AbuseRingVerifier` with cluster connectivity evidence.
+   - Executes simulated response: `INVESTIGATION_CASE_QUEUE` (clustering linked devices and applying provisional holds).
+
+### M7 Testing
+
+Run the full test suite:
+
+```bash
+./.venv/bin/python -m pytest -v
+```

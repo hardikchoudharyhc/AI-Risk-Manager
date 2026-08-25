@@ -41,10 +41,11 @@ class Predictor:
         case_type = self.preprocessor.decode_labels(np.array([y_pred_enc]))[0]
         confidence = float(y_proba[y_pred_enc])
         
-        # Build probability dict
+        # Build probability dict with correctly decoded class names
+        class_names = self.preprocessor.label_encoder.classes_
         probs = {
-            case_types: float(prob)
-            for case_types, prob in zip(CASE_TYPES, y_proba)
+            str(c_name): float(prob)
+            for c_name, prob in zip(class_names, y_proba)
         }
         
         from datetime import datetime, timezone

@@ -2,7 +2,13 @@
 
 from risk_manager.verification import VerificationService, VerificationResult
 from risk_manager.decision import DecisionEngine, DecisionResult
-from risk_manager.responder import AutoResponder, ResponseResult, AuditRecord
+from risk_manager.responder import (
+    AutoResponder,
+    ResponseResult,
+    AuditRecord,
+    MockActionAdapter,
+    MockExecutionReceipt,
+)
 
 __all__ = [
     "VerificationService",
@@ -12,4 +18,6 @@ __all__ = [
     "AutoResponder",
     "ResponseResult",
     "AuditRecord",
+    "MockActionAdapter",
+    "MockExecutionReceipt",
 ]
