@@ -1,5 +1,8 @@
 from datetime import timezone
 from decimal import Decimal
+from pathlib import Path
+
+ROOT = Path(__file__).parents[1]
 
 from risk_manager.config import MAPPINGS
 from risk_manager.ingestion.api_connector import SimulatedApiConnector
@@ -48,3 +51,92 @@ def test_invalid_and_duplicate_records_are_quarantined():
     assert stats.duplicate_records == 1
     assert stats.invalid_records == 2
     assert len(stats.errors) == 2
+
+
+def test_merchant_a_twenty_record_csv_ingestion(tmp_path):
+    csv_path = tmp_path / "merchant_a_20.csv"
+    header = "cust_id, order_id, order_total, pay_type, order_dt, currency, transaction_status\n"
+    rows = [
+        f"A-1{i:02d}, O-1{i:02d}, {10 + i}.50, upi, 2026-08-23T08:00:00Z, usd, completed\n"
+        for i in range(20)
+    ]
+    csv_path.write_text(header + "".join(rows))
+    connector = CsvConnector(csv_path)
+    records = connector.read()
+    valid, stats = process_records(records, MAPPINGS["merchant_a"], Transaction)
+    assert stats.total_records == 20
+    assert stats.valid_records == 20
+    assert stats.invalid_records == 0
+    assert stats.duplicate_records == 0
+    assert len(valid) == 20
+
+
+def test_auto_schema_detection_twenty_records(tmp_path):
+    from risk_manager.normalize import detect_merchant_schema
+    csv_path = tmp_path / "merchant_a_20_auto.csv"
+    header = "cust_id, order_id, order_total, pay_type, order_dt, currency, transaction_status\n"
+    rows = [
+        f"A-1{i:02d}, O-1{i:02d}, {10 + i}.50, upi, 2026-08-23T08:00:00Z, usd, completed\n"
+        for i in range(20)
+    ]
+    csv_path.write_text(header + "".join(rows))
+    connector = CsvConnector(csv_path)
+    records = connector.read()
+    merchant_id, mapping = detect_merchant_schema(records)
+    assert merchant_id == "merchant_a"
+    valid, stats = process_records(records, mapping, Transaction)
+    assert stats.total_records == 20
+    assert stats.valid_records == 20
+    assert stats.invalid_records == 0
+    assert stats.duplicate_records == 0
+
+
+def test_unified_ingest_merchant_a_csv_20_records():
+    from risk_manager.pipeline import ingest_raw_data
+    path = ROOT / "data" / "synthetic" / "merchant_a_20.csv"
+    raw_content = path.read_bytes()
+    valid_txns, stats, merchant_id, fmt = ingest_raw_data(raw_content)
+    assert fmt == "csv"
+    assert merchant_id == "merchant_a"
+    assert stats.total_records == 20
+    assert stats.valid_records == 20
+    assert stats.invalid_records == 0
+    assert stats.duplicate_records == 0
+    assert len(valid_txns) == 20
+
+
+def test_unified_ingest_merchant_b_json_20_records():
+    from risk_manager.pipeline import ingest_raw_data
+    path = ROOT / "data" / "synthetic" / "merchant_b_20.json"
+    raw_content = path.read_text()
+    valid_txns, stats, merchant_id, fmt = ingest_raw_data(raw_content)
+    assert fmt == "json"
+    assert merchant_id == "merchant_b"
+    assert stats.total_records == 20
+    assert stats.valid_records == 20
+    assert stats.invalid_records == 0
+    assert stats.duplicate_records == 0
+    assert len(valid_txns) == 20
+
+
+def test_unified_ingest_canonical_json():
+    from risk_manager.pipeline import ingest_raw_data
+    raw_json = '[{"customer_id": "C-99", "transaction_id": "T-99", "order_id": "O-99", "amount": "99.00", "payment_method": "CARD", "timestamp": "2026-08-23T10:00:00Z", "currency": "USD", "transaction_status": "COMPLETED"}]'
+    valid_txns, stats, merchant_id, fmt = ingest_raw_data(raw_json)
+    assert fmt == "json"
+    assert merchant_id == "canonical"
+    assert stats.valid_records == 1
+    assert valid_txns[0].customer_id == "C-99"
+
+
+def test_unified_ingest_malformed_inputs():
+    from risk_manager.pipeline import ingest_raw_data
+    # Malformed JSON
+    valid_txns, stats, merchant_id, fmt = ingest_raw_data("[invalid json")
+    assert stats.valid_records == 0
+    assert "Malformed JSON" in stats.errors[0]
+
+    # Empty content
+    valid_txns, stats, merchant_id, fmt = ingest_raw_data("   ")
+    assert stats.valid_records == 0
+    assert "empty" in stats.errors[0]

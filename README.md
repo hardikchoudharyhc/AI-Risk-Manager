@@ -418,3 +418,41 @@ Run the full test suite:
 ```bash
 ./.venv/bin/python -m pytest -v
 ```
+
+## Milestone 8 — REST API & Production Interface
+
+Production-facing FastAPI service exposing unified end-to-end risk analysis endpoints.
+
+### API Capabilities
+
+- **`GET /health`**: Returns service health status and timestamp.
+- **`POST /risk/analyze`**: Accepts canonical transaction payloads, validates inputs via Pydantic, routes transactions through the end-to-end M1-M6 pipeline, and returns structured JSON responses with detector predictions, verifier risk scores, SHAP explanations, decision engine outputs, auto-responder actions, and audit trail references.
+
+### Running the API Server
+
+```bash
+./.venv/bin/uvicorn risk_manager.api.app:app --reload --port 8000
+```
+
+### Example API Request
+
+```bash
+curl -X POST http://127.0.0.1:8000/risk/analyze \
+  -H "Content-Type: application/json" \
+  -d '{
+    "merchant_id": "merchant_a",
+    "transaction_id": "TXN-API-100",
+    "order_id": "ORD-API-100",
+    "customer_id": "C-TF-100",
+    "amount": 320.00,
+    "currency": "USD",
+    "payment_method": "CARD",
+    "transaction_status": "PENDING"
+  }'
+```
+
+### Running the Web UI
+
+```bash
+./.venv/bin/streamlit run app.py
+```
