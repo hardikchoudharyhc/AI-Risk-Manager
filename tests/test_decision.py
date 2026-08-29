@@ -61,7 +61,7 @@ def test_decision_returns_expected_contract_fields():
     decision = decision_engine.decide("merchant_a", detector, verifier_result)
 
     assert decision.decision in {"ALLOW", "MONITOR", "MANUAL_REVIEW", "BLOCK", "APPROVE", "DEFENSIVE_ACTION"}
-    assert 0.0 <= decision.risk_score <= 1.0
+    assert 0.0 <= decision.risk_score <= 100.0
     assert 0.0 <= decision.confidence <= 1.0
     assert "ALLOW" in decision.expected_loss_by_action or "APPROVE" in decision.expected_loss_by_action
     assert "MANUAL_REVIEW" in decision.expected_loss_by_action
@@ -138,7 +138,8 @@ def test_expected_loss_math_for_approve_is_fn_weighted():
     )
 
     decision = decision_engine.decide("merchant_a", detector, verifier_result)
-    expected_approve = decision.risk_score * 200.0
+    risk_prob = decision.risk_score / 100.0 if decision.risk_score > 1.0 else decision.risk_score
+    expected_approve = risk_prob * 200.0
     assert abs(decision.expected_loss_by_action["APPROVE"] - round(expected_approve, 6)) < 1e-6
 
 
@@ -168,6 +169,8 @@ def test_integration_detector_verifier_decision_flow():
 
 
 def test_configurable_weights_via_engine():
+    from risk_manager.decision.engine import to_canonical_risk_score
+
     txns, verifier_service, _ = _build_engine_and_data()
     # Instantiate engine with custom weights: 80% detector, 20% verifier
     custom_engine = DecisionEngine.from_policy_file(
@@ -194,9 +197,10 @@ def test_configurable_weights_via_engine():
     detector_signal = custom_engine._detector_risk_signal(
         detector.case_type, detector.probabilities, detector.confidence
     )
-    expected_combined_risk = 0.80 * detector_signal + 0.20 * verifier_result.risk_score
+    raw_combined = 0.80 * detector_signal + 0.20 * verifier_result.risk_score
+    expected_combined_risk = to_canonical_risk_score(raw_combined)
 
-    assert abs(decision.risk_score - round(expected_combined_risk, 4)) < 1e-4
+    assert abs(decision.risk_score - expected_combined_risk) < 1e-3
     assert decision.combined_evidence["detector_weight"] == 0.80
     assert decision.combined_evidence["verifier_weight"] == 0.20
     assert "0.8*detector_signal + 0.2*verifier_risk" in decision.combined_evidence["combined_risk_formula"]
@@ -217,9 +221,9 @@ def test_case_type_specific_fp_fn_costs():
     verifier_abuse.edge_flags = []
 
     decision_abuse = decision_engine.decide("merchant_b", detector_abuse, verifier_abuse)
-    # Expected approve loss uses the case-specific FN cost of 500.0
-    expected_abuse_approve = decision_abuse.risk_score * 500.0
-    expected_abuse_defensive = (1.0 - decision_abuse.risk_score) * 60.0
+    risk_prob_abuse = decision_abuse.risk_score / 100.0 if decision_abuse.risk_score > 1.0 else decision_abuse.risk_score
+    expected_abuse_approve = risk_prob_abuse * 500.0
+    expected_abuse_defensive = (1.0 - risk_prob_abuse) * 60.0
     assert abs(decision_abuse.expected_loss_by_action["APPROVE"] - round(expected_abuse_approve, 6)) < 1e-6
     assert abs(decision_abuse.expected_loss_by_action["DEFENSIVE_ACTION"] - round(expected_abuse_defensive, 6)) < 1e-6
 
@@ -235,8 +239,9 @@ def test_case_type_specific_fp_fn_costs():
     verifier_spike.edge_flags = []
 
     decision_spike = decision_engine.decide("merchant_b", detector_spike, verifier_spike)
-    expected_spike_approve = decision_spike.risk_score * 260.0
-    expected_spike_defensive = (1.0 - decision_spike.risk_score) * 30.0
+    risk_prob_spike = decision_spike.risk_score / 100.0 if decision_spike.risk_score > 1.0 else decision_spike.risk_score
+    expected_spike_approve = risk_prob_spike * 260.0
+    expected_spike_defensive = (1.0 - risk_prob_spike) * 30.0
     assert abs(decision_spike.expected_loss_by_action["APPROVE"] - round(expected_spike_approve, 6)) < 1e-6
     assert abs(decision_spike.expected_loss_by_action["DEFENSIVE_ACTION"] - round(expected_spike_defensive, 6)) < 1e-6
 
@@ -297,5 +302,23 @@ def test_score_mapping_policy_and_edge_cases():
 
     assert map_risk_score_to_level_and_decision(1.00) == ("CRITICAL", "BLOCK")
     assert map_risk_score_to_level_and_decision(100) == ("CRITICAL", "BLOCK")
+
+
+def test_to_canonical_risk_score_conversions():
+    """Regression test proving single-point conversions at risk-engine boundary:
+    0.0 -> 0
+    0.3 -> 30
+    0.5433 -> 54.33
+    0.806 -> 80.6
+    1.0 -> 100
+    """
+    from risk_manager.decision.engine import to_canonical_risk_score
+
+    assert to_canonical_risk_score(0.0) == 0
+    assert to_canonical_risk_score(0.3) == 30
+    assert to_canonical_risk_score(0.5433) == 54.33
+    assert to_canonical_risk_score(0.806) == 80.6
+    assert to_canonical_risk_score(1.0) == 100
+
 
 

@@ -16,7 +16,11 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from data.synthetic.dataset_generator import create_synthetic_dataset
 from risk_manager.decision import DecisionEngine
-from risk_manager.decision.engine import map_risk_score_to_level_and_decision
+from risk_manager.decision.engine import (
+    DecisionEngine,
+    map_risk_score_to_level_and_decision,
+    to_canonical_risk_score,
+)
 from risk_manager.detector import generate_labeled_dataset, train_detector, Predictor
 from risk_manager.demo import extract_detector_features, run_demo_pipeline
 from risk_manager.features import FeatureEngine
@@ -495,8 +499,8 @@ def _evaluate_transaction(
             detector_confidence=detector_pred.confidence,
             probabilities=probs,
             verifier_status=verifier_result.verification_status,
-            verifier_risk_score=verifier_result.risk_score,
-            risk_score=decision_result.risk_score,
+            verifier_risk_score=to_canonical_risk_score(verifier_result.risk_score),
+            risk_score=to_canonical_risk_score(decision_result.risk_score),
             risk_level=getattr(decision_result, "risk_level", "LOW"),
             evidence_reasons=verifier_result.reasons,
             shap_top_features=shap_top_features,

@@ -578,3 +578,93 @@ def test_razorpay_http_error_handling():
         assert "timed out" in err_msg or "Razorpay" in err_msg
 
 
+def test_razorpay_real_test_mode_end_to_end_pipeline():
+    """Test complete end-to-end flow: Real Test Mode credentials -> fetch payments -> map -> M1-M9 -> persist -> GET API -> deduplicate."""
+    from unittest.mock import patch, MagicMock
+
+    mock_razorpay_payments = {
+        "entity": "collection",
+        "count": 2,
+        "items": [
+            {
+                "id": "pay_RZP_TEST_E2E_101",
+                "entity": "payment",
+                "amount": 4999900,  # ₹49,999.00
+                "currency": "INR",
+                "status": "captured",
+                "order_id": "order_RZP_TEST_101",
+                "method": "card",
+                "customer_id": "C-TF-100",
+                "email": "fraud_person@example.com",
+                "created_at": 1700000000
+            },
+            {
+                "id": "pay_RZP_TEST_E2E_102",
+                "entity": "payment",
+                "amount": 15000,   # ₹150.00
+                "currency": "INR",
+                "status": "captured",
+                "order_id": "order_RZP_TEST_102",
+                "method": "upi",
+                "customer_id": "C-NORM-100",
+                "email": "control_person@example.com",
+                "created_at": 1700000100
+            }
+        ]
+    }
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = mock_razorpay_payments
+
+    mock_client_instance = MagicMock()
+    mock_client_instance.get.return_value = mock_resp
+
+    with patch("risk_manager.integrations.razorpay.adapter.httpx.Client") as MockClientClass:
+        MockClientClass.return_value.__enter__.return_value = mock_client_instance
+
+        # 1. Connect Real Razorpay Test Mode Credentials
+        conn_res = client.post("/integrations/razorpay/connect", json={
+            "key_id": "rzp_test_EndToEndKey123",
+            "key_secret": "EndToEndSecret_abc789",
+            "merchant_id": "merchant_e2e_rzp"
+        })
+        assert conn_res.status_code == 200
+        conn_data = conn_res.json()
+        assert conn_data["metadata"]["environment"] == "RAZORPAY TEST MODE"
+        assert conn_data["metadata"]["is_mock"] is False
+        conn_id = conn_data["connection_id"]
+
+        # 2. Sync Real Payments
+        sync_res = client.post("/integrations/razorpay/sync", json={
+            "connection_id": conn_id,
+            "count": 10
+        })
+        assert sync_res.status_code == 200
+        sync_data = sync_res.json()
+        assert sync_data["synced_records"] == 2
+        assert sync_data["environment"] == "RAZORPAY TEST MODE"
+
+        tx1 = sync_data["pipeline_results"][0]
+        assert tx1["transaction"]["transaction_id"] == "pay_RZP_TEST_E2E_101"
+        score_before = tx1["risk_assessment"]["risk_score"]
+        assert score_before > 0.0
+
+        # 3. GET /api/transactions/{id} verifies persisted score matches score before persistence
+        detail_res = client.get("/api/transactions/pay_RZP_TEST_E2E_101")
+        assert detail_res.status_code == 200
+        detail_data = detail_res.json()
+        score_after = detail_data["risk_assessment"]["risk_score"]
+        assert score_before == score_after
+
+        # 4. Duplicate Sync Idempotency Check
+        sync_res_2 = client.post("/integrations/razorpay/sync", json={
+            "connection_id": conn_id,
+            "count": 10
+        })
+        assert sync_res_2.status_code == 200
+        assert sync_res_2.json()["duplicates"] == 2
+        assert sync_res_2.json()["inserted"] == 0
+
+
+

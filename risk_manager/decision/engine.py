@@ -12,6 +12,33 @@ def _clamp(value: float, low: float = 0.0, high: float = 1.0) -> float:
     return max(low, min(high, value))
 
 
+def to_canonical_risk_score(val: float | None) -> float:
+    """
+    Converts 0-1 scale risk score to canonical 0-100 scale score exactly once at the risk-engine boundary.
+    0.0    -> 0
+    0.3    -> 30
+    0.5433 -> 54.33
+    0.806  -> 80.6
+    1.0    -> 100
+
+    If value is already > 1.0 (on 0-100 scale), returns rounded float.
+    """
+    if val is None:
+        return 0.0
+    v = float(val)
+    if 0.0 < v <= 1.0:
+        v = v * 100.0
+    elif v < 0.0:
+        v = 0.0
+    elif v > 100.0:
+        v = 100.0
+
+    r = round(v, 4)
+    if r == int(r):
+        return float(int(r))
+    return r
+
+
 def map_risk_score_to_level_and_decision(score: float) -> tuple[str, str]:
     """
     Maps a risk score (0.0 to 1.0 or 0 to 100) to (risk_level, decision).
@@ -22,9 +49,7 @@ def map_risk_score_to_level_and_decision(score: float) -> tuple[str, str]:
     60–79  (0.60 – 0.79): Risk Level = HIGH,     Decision = MANUAL_REVIEW
     80–100 (0.80 – 1.00): Risk Level = CRITICAL, Decision = BLOCK
     """
-    val = float(score)
-    val_100 = val if val > 1.0 else val * 100.0
-    s = round(val_100, 4)
+    s = to_canonical_risk_score(score)
 
     if s < 30.0:
         return "LOW", "ALLOW"
@@ -34,6 +59,7 @@ def map_risk_score_to_level_and_decision(score: float) -> tuple[str, str]:
         return "HIGH", "MANUAL_REVIEW"
     else:
         return "CRITICAL", "BLOCK"
+
 
 
 @dataclass
@@ -102,7 +128,8 @@ class DecisionEngine:
 
         combined_confidence = _clamp((detector_conf + verifier_conf) / 2.0 - uncertainty_penalty)
 
-        risk_level, decision = map_risk_score_to_level_and_decision(combined_risk)
+        canonical_risk = to_canonical_risk_score(combined_risk)
+        risk_level, decision = map_risk_score_to_level_and_decision(canonical_risk)
 
         case_type = detector_case if detector_case != "unknown" else verifier_case
         expected_loss = self._expected_loss_by_action(
@@ -115,7 +142,7 @@ class DecisionEngine:
 
         rationale = self._build_rationale(
             decision=decision,
-            risk=combined_risk,
+            risk=canonical_risk,
             confidence=combined_confidence,
             verifier_status=verifier_status,
             candidate_actions=candidate_actions,
@@ -128,7 +155,7 @@ class DecisionEngine:
             merchant_id=merchant_id,
             policy_name=policy.name,
             decision=decision,
-            risk_score=combined_risk,
+            risk_score=canonical_risk,
             risk_level=risk_level,
             confidence=combined_confidence,
             expected_loss_by_action=expected_loss,
@@ -143,7 +170,7 @@ class DecisionEngine:
             verifier_evidence={
                 "case_type": verifier_case,
                 "verification_status": verifier_status,
-                "risk_score": verifier_risk,
+                "risk_score": to_canonical_risk_score(verifier_risk),
                 "confidence": verifier_conf,
                 "reasons": list(getattr(verifier_result, "reasons", [])),
                 "edge_flags": edge_flags,
