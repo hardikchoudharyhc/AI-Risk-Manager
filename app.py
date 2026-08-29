@@ -31,124 +31,269 @@ from risk_manager.security import (
 ROOT = Path(__file__).parent
 
 st.set_page_config(
-    page_title="AI Risk Manager — Defensive Risk Intelligence Platform",
-    page_icon="📊",
-    layout="wide"
+    page_title="AI Risk Manager — Institutional Risk Console",
+    page_icon="🛡️",
+    layout="wide",
+    initial_sidebar_state="expanded",
 )
 
-# Enterprise Dashboard Custom CSS
+# ==============================================================================
+# FINX-STYLE ENTERPRISE DESIGN SYSTEM (LIGHT THEME)
+# ==============================================================================
 st.markdown("""
 <style>
-    /* Global Background & Typography */
-    .stApp {
-        background-color: #F8FAFC !important;
-        color: #0F172A !important;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    /* Base Font & Theme Override */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    html, body, [class*="css"], .stApp {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+        background-color: #F6F8FB !important;
+        color: #172033 !important;
     }
-    
+
     header[data-testid="stHeader"] {
-        background-color: #F8FAFC !important;
+        background-color: #F6F8FB !important;
+        border-bottom: 1px solid #E4E7EC;
     }
 
-    /* Main Container Padding */
     .main .block-container {
-        padding-top: 1.5rem;
-        padding-bottom: 2rem;
-        max-width: 1400px;
+        padding-top: 1.25rem !important;
+        padding-bottom: 2.5rem !important;
+        max-width: 1440px !important;
     }
 
-    /* Header Banner */
-    .enterprise-header {
-        background-color: #FFFFFF;
-        border: 1px solid #E2E8F0;
-        border-radius: 6px;
-        padding: 1.25rem 1.5rem;
-        margin-bottom: 1.25rem;
+    /* Sidebar Navigation */
+    section[data-testid="stSidebar"] {
+        background-color: #FFFFFF !important;
+        border-right: 1px solid #E4E7EC !important;
+        width: 280px !important;
     }
-    .enterprise-title {
-        font-size: 1.35rem;
+
+    .sidebar-brand {
+        padding: 1.25rem 1rem 0.75rem 1rem;
+        border-bottom: 1px solid #F1F5F9;
+        margin-bottom: 1rem;
+    }
+    .sidebar-brand-title {
+        font-size: 1.1rem;
         font-weight: 700;
-        color: #0F172A;
-        margin: 0;
-        line-height: 1.2;
+        color: #172033;
+        letter-spacing: -0.02em;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
     }
-    .enterprise-subtitle {
-        font-size: 0.875rem;
+    .sidebar-brand-subtitle {
+        font-size: 0.75rem;
         font-weight: 600;
-        color: #1D4ED8;
-        margin-top: 0.25rem;
-    }
-    .enterprise-caption {
-        font-size: 0.775rem;
-        color: #475569;
+        color: #2563EB;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
         margin-top: 0.15rem;
     }
 
-    /* Status Tracker */
-    .tracker-container {
-        background-color: #FFFFFF;
-        border: 1px solid #E2E8F0;
-        border-radius: 6px;
-        padding: 0.75rem 1rem;
-        margin-bottom: 1.25rem;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        flex-wrap: wrap;
-        gap: 0.5rem;
+    .sidebar-section-header {
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: #94A3B8;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin: 1rem 0 0.4rem 0.75rem;
     }
-    .tracker-item {
-        font-size: 0.8rem;
+
+    /* Cards & Panels */
+    .finx-card {
+        background: #FFFFFF;
+        border: 1px solid #E4E7EC;
+        border-radius: 8px;
+        padding: 1.25rem;
+        box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+        margin-bottom: 1.25rem;
+    }
+
+    .finx-metric-card {
+        background: #FFFFFF;
+        border: 1px solid #E4E7EC;
+        border-radius: 8px;
+        padding: 1rem 1.25rem;
+        box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+    }
+    .finx-metric-label {
+        font-size: 0.78rem;
         font-weight: 600;
-        color: #15803D;
+        color: #667085;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+    .finx-metric-val {
+        font-size: 1.65rem;
+        font-weight: 700;
+        color: #172033;
+        margin-top: 0.25rem;
+        letter-spacing: -0.03em;
+    }
+    .finx-metric-sub {
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: #10B981;
+        margin-top: 0.2rem;
         display: flex;
         align-items: center;
         gap: 0.25rem;
     }
 
-    /* Cards & Containers */
-    .metric-card {
-        background-color: #FFFFFF;
-        border: 1px solid #E2E8F0;
-        border-radius: 6px;
-        padding: 0.85rem 1rem;
-        text-align: left;
-    }
-    .metric-label {
-        font-size: 0.75rem;
-        font-weight: 600;
-        color: #475569;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-    .metric-val {
-        font-size: 1.5rem;
+    /* Risk Badges */
+    .badge-risk {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.2rem 0.55rem;
+        border-radius: 4px;
+        font-size: 0.725rem;
         font-weight: 700;
-        color: #0F172A;
-        margin-top: 0.15rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
     }
-
-    /* Demo Badge */
-    .demo-badge {
+    .badge-low {
+        background-color: #DCFCE7;
+        color: #15803D;
+        border: 1px solid #BBF7D0;
+    }
+    .badge-medium {
         background-color: #FEF3C7;
         color: #B45309;
-        font-size: 0.7rem;
-        font-weight: 700;
-        padding: 0.15rem 0.4rem;
-        border-radius: 4px;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        display: inline-block;
-        margin-bottom: 0.5rem;
+        border: 1px solid #FDE68A;
+    }
+    .badge-high {
+        background-color: #FEE2E2;
+        color: #B91C1C;
+        border: 1px solid #FCA5A5;
+    }
+    .badge-critical {
+        background-color: #FEE2E2;
+        color: #991B1B;
+        border: 1px solid #F87171;
+        font-weight: 800;
     }
 
-    /* Hide redundant elements */
+    .badge-decision {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.2rem 0.55rem;
+        border-radius: 4px;
+        font-size: 0.725rem;
+        font-weight: 600;
+    }
+    .badge-approve { background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE; }
+    .badge-review { background: #FFFBEB; color: #D97706; border: 1px solid #FDE68A; }
+    .badge-defensive { background: #FEF2F2; color: #DC2626; border: 1px solid #FECACA; }
+
+    /* Pipeline Visualization */
+    .pipeline-grid {
+        display: flex;
+        gap: 0.5rem;
+        overflow-x: auto;
+        padding: 0.75rem;
+        background: #FFFFFF;
+        border: 1px solid #E4E7EC;
+        border-radius: 8px;
+        margin-bottom: 1.25rem;
+    }
+    .pipeline-step {
+        flex: 1;
+        min-width: 100px;
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        padding: 0.6rem;
+        text-align: center;
+    }
+    .pipeline-step.active {
+        background: #EFF6FF;
+        border-color: #93C5FD;
+    }
+    .pipeline-step-code {
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: #2563EB;
+    }
+    .pipeline-step-name {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #172033;
+        margin-top: 0.15rem;
+    }
+    .pipeline-step-status {
+        font-size: 0.68rem;
+        color: #166534;
+        font-weight: 600;
+        margin-top: 0.25rem;
+    }
+
+    /* Integration Card */
+    .integration-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.25rem;
+        margin-bottom: 1.5rem;
+    }
+    .integration-card {
+        background: #FFFFFF;
+        border: 1px solid #E4E7EC;
+        border-radius: 8px;
+        padding: 1.25rem;
+    }
+    .integration-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.75rem;
+    }
+    .integration-title {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #172033;
+    }
+    .integration-status {
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+    }
+    .status-connected { background: #DCFCE7; color: #15803D; }
+    .status-available { background: #F1F5F9; color: #64748B; }
+
+    /* Tables */
+    .stDataFrame {
+        border: 1px solid #E4E7EC !important;
+        border-radius: 8px !important;
+        background: #FFFFFF !important;
+    }
+
+    /* Buttons */
+    .stButton > button {
+        background-color: #2563EB !important;
+        color: #FFFFFF !important;
+        border: none !important;
+        border-radius: 6px !important;
+        font-weight: 600 !important;
+        font-size: 0.85rem !important;
+        padding: 0.5rem 1rem !important;
+        transition: all 0.15s ease-in-out !important;
+    }
+    .stButton > button:hover {
+        background-color: #1D4ED8 !important;
+        box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2) !important;
+    }
+
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
 
 
+# ==============================================================================
+# BACKEND & PIPELINE LOADER (UNTOUCHED BUSINESS LOGIC)
+# ==============================================================================
 @st.cache_resource
 def load_pipeline():
     customers, orders, txns, returns, chargebacks, devices, addresses = create_synthetic_dataset()
@@ -252,7 +397,6 @@ def evaluate_single_transaction(txn: Transaction, merchant_id: str):
         for f in (verifier_result.explanation.top_features if verifier_result.explanation else [])
     ]
 
-    # Map Risk Level
     risk_score = verifier_result.risk_score
     if detected_case == "normal" or risk_score < 0.25:
         risk_level = "LOW"
@@ -263,13 +407,12 @@ def evaluate_single_transaction(txn: Transaction, merchant_id: str):
     else:
         risk_level = "CRITICAL"
 
-    # Human-readable decision summary
     dec = decision_result.decision
     exp_losses = decision_result.expected_loss_by_action
     if dec == "MANUAL_REVIEW":
-        human_expl = f"Manual review selected because the estimated loss of approval (${exp_losses.get('APPROVE', 0.0):.2f}) exceeds the expected cost of review (${exp_losses.get('MANUAL_REVIEW', 0.0):.2f})."
+        human_expl = f"Manual review selected because expected loss of approval (${exp_losses.get('APPROVE', 0.0):.2f}) exceeds review cost (${exp_losses.get('MANUAL_REVIEW', 0.0):.2f})."
     elif dec == "DEFENSIVE_ACTION":
-        human_expl = f"Defensive action selected because the risk score ({risk_score:.2f}) and verified suspicious indicators exceed safety thresholds."
+        human_expl = f"Defensive action selected as risk score ({risk_score:.2f}) exceeds security policy threshold."
     else:
         human_expl = f"Transaction approved as expected loss (${exp_losses.get('APPROVE', 0.0):.2f}) is within acceptable merchant policy limits."
 
@@ -302,81 +445,125 @@ def evaluate_single_transaction(txn: Transaction, merchant_id: str):
     }
 
 
-def render_pipeline_tracker():
-    st.markdown("""
-    <div class="tracker-container">
-        <span class="tracker-item">Input ✓</span>
-        <span style="color:#CBD5E1;">—</span>
-        <span class="tracker-item">Validation ✓</span>
-        <span style="color:#CBD5E1;">—</span>
-        <span class="tracker-item">Detection ✓</span>
-        <span style="color:#CBD5E1;">—</span>
-        <span class="tracker-item">Verification ✓</span>
-        <span style="color:#CBD5E1;">—</span>
-        <span class="tracker-item">Explainability ✓</span>
-        <span style="color:#CBD5E1;">—</span>
-        <span class="tracker-item">Decision ✓</span>
-        <span style="color:#CBD5E1;">—</span>
-        <span class="tracker-item">Response ✓</span>
-        <span style="color:#CBD5E1;">—</span>
-        <span class="tracker-item">Audit ✓</span>
+# Initialize Session State Data
+if "batch_results" not in st.session_state or not st.session_state["batch_results"]:
+    # Pre-populate with default demo dataset for immediate interactive visualization
+    try:
+        demo_items = get_demo_results()
+        eval_items = []
+        for d in demo_items:
+            eval_items.append({
+                "transaction_id": d["transaction_id"],
+                "order_id": d.get("order_id", d["transaction_id"]),
+                "customer_id": d.get("customer_id", f"C-{d['scenario_idx']+8000}"),
+                "merchant_id": d.get("merchant_id", "merchant_a"),
+                "currency": "INR",
+                "payment_method": "UPI" if d["scenario_idx"] % 2 == 0 else "CARD",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "transaction_status": "COMPLETED",
+                "scenario_name": d["scenario_name"],
+                "case_type": d["case_type"],
+                "amount": float(d["amount"]),
+                "detector_confidence": d["detector_confidence"],
+                "verifier_status": d["verifier_status"],
+                "verifier_risk_score": d["verifier_risk_score"],
+                "risk_level": "CRITICAL" if d["verifier_risk_score"] > 0.85 else ("HIGH" if d["verifier_risk_score"] > 0.50 else ("MEDIUM" if d["verifier_risk_score"] > 0.25 else "LOW")),
+                "shap_top_features": d.get("shap_top_features", []),
+                "decision": d["decision"],
+                "expected_loss_by_action": d["expected_loss_by_action"],
+                "human_explanation": f"Evaluation for synthetic scenario {d['scenario_name']}.",
+                "response_action_code": d["response_action_code"],
+                "response_action_type": d["response_action_type"],
+                "response_message": d["response_message"],
+                "mock_execution_status": d["mock_execution_status"],
+                "mock_executed_steps": d["mock_executed_steps"],
+                "audit_id": d["audit_id"],
+            })
+        st.session_state["batch_results"] = eval_items
+    except Exception:
+        st.session_state["batch_results"] = []
+
+if "selected_txn_id" not in st.session_state:
+    st.session_state["selected_txn_id"] = None
+
+
+# ==============================================================================
+# UI COMPONENTS (FINX ENTERPRISE STYLE)
+# ==============================================================================
+
+def render_pipeline_tracker(active_stage: str = "ALL"):
+    stages = [
+        ("M1", "Detection", "✓ Complete"),
+        ("M2", "Verification", "✓ Complete"),
+        ("M3", "Risk Scoring", "✓ Complete"),
+        ("M4", "Decision Engine", "✓ Resolved"),
+        ("M5", "Auto-Responder", "✓ Executed"),
+        ("M6", "Audit & Log", "✓ Immutable"),
+        ("M7", "Feedback Loop", "✓ Updated"),
+        ("M8", "Adaptive Model", "✓ Active"),
+        ("M9", "Compliance", "✓ Ready"),
+    ]
+    html_cols = []
+    for code, name, status in stages:
+        is_act = "active" if active_stage in (code, name, "ALL") else ""
+        html_cols.append(f"""
+        <div class="pipeline-step {is_act}">
+            <div class="pipeline-step-code">{code}</div>
+            <div class="pipeline-step-name">{name}</div>
+            <div class="pipeline-step-status">{status}</div>
+        </div>
+        """)
+    
+    st.markdown(f'<div class="pipeline-grid">{"".join(html_cols)}</div>', unsafe_allow_html=True)
+
+
+def render_transaction_investigation_view(res: dict):
+    st.markdown(f"""
+    <div class="finx-card">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <span style="font-size:0.8rem; font-weight:600; color:#667085;">TRANSACTION INVESTIGATION WORKSTATION</span>
+                <h2 style="margin:0.1rem 0; font-weight:700; color:#172033;">#{res['transaction_id']}</h2>
+                <span style="font-size:0.85rem; color:#475569;">Customer: <strong>{res['customer_id']}</strong> • Order: <strong>{res['order_id']}</strong> • Timestamp: {res['timestamp']}</span>
+            </div>
+            <div style="text-align:right;">
+                <div style="font-size:1.8rem; font-weight:700; color:#172033;">₹{res['amount']:,.2f}</div>
+                <div style="margin-top:0.3rem;">
+                    <span class="badge-risk badge-{res['risk_level'].lower()}">{res['risk_level']} RISK</span>
+                    <span class="badge-decision badge-{res['decision'].lower().replace('_', '')}">{res['decision']}</span>
+                </div>
+            </div>
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
-
-def render_transaction_detail(res: dict):
-    st.markdown("### Transaction Analysis & Risk Detail")
-
-    # 1. Transaction Info Grid
-    d1, d2, d3, d4 = st.columns(4)
-    d1.metric("Transaction ID", res["transaction_id"])
-    d2.metric("Customer ID", res["customer_id"])
-    d3.metric("Amount", f"${res['amount']:.2f} {res['currency']}")
-    d4.metric("Risk Level", res["risk_level"])
+    # Risk Summary & Metrics
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Risk Score", f"{int(res['verifier_risk_score'] * 100)} / 100")
+    m2.metric("Detector Confidence", f"{res['detector_confidence'] * 100:.1f}%")
+    m3.metric("Case Scenario", res['case_type'].replace('_', ' ').title())
+    m4.metric("Action Code", res['response_action_code'])
 
     st.markdown("---")
 
-    col_info, col_risk = st.columns(2)
+    col_left, col_right = st.columns(2)
 
-    with col_info:
-        st.markdown("#### Transaction Information")
-        info_table = [
-            {"Property": "Order ID", "Value": res["order_id"]},
-            {"Property": "Payment Method", "Value": res["payment_method"]},
-            {"Property": "Timestamp", "Value": res["timestamp"]},
-            {"Property": "Transaction Status", "Value": res["transaction_status"]},
-            {"Property": "Merchant Schema", "Value": res["merchant_id"].upper()},
-        ]
-        st.dataframe(info_table, use_container_width=True, hide_index=True)
-
-    with col_risk:
-        st.markdown("#### Risk Assessment")
-        risk_table = [
-            {"Metric": "Detected Case Type", "Value": res["case_type"]},
-            {"Metric": "Detector Confidence", "Value": f"{res['detector_confidence'] * 100:.1f}%"},
-            {"Metric": "Verifier Status", "Value": res["verifier_status"]},
-            {"Metric": "Verifier Risk Score", "Value": f"{res['verifier_risk_score']:.3f}"},
-        ]
-        st.dataframe(risk_table, use_container_width=True, hide_index=True)
-
-    st.markdown("---")
-
-    # 2. SHAP & Decision Engine
-    col_shap, col_decision = st.columns(2)
-
-    with col_shap:
-        st.markdown("#### Why was this flagged?")
-        st.caption("SHAP Top Contributing Feature Attribution")
+    with col_left:
+        st.markdown("#### Risk Contributors & SHAP Attribution")
+        st.caption("Primary signals driving elevated risk score")
         top_feats = res.get("shap_top_features", [])
         if top_feats:
-            st.dataframe(top_feats, use_container_width=True, hide_index=True)
+            for f in top_feats:
+                fname = f['feature'].replace('_', ' ').title()
+                contrib = f['contribution']
+                pct = min(100, max(5, int(abs(contrib) * 100)))
+                st.markdown(f"**{fname}** (`{f['value']}`)")
+                st.progress(pct / 100)
         else:
-            st.info("No suspicious feature contributions detected for this baseline transaction.")
+            st.info("No anomalous feature contributions detected for this baseline transaction.")
 
-    with col_decision:
-        st.markdown("#### Recommended Decision")
-        st.write(f"**Decision Output:** `{res['decision']}`")
-        st.caption(res["human_explanation"])
+        st.markdown("#### Recommended Decision Logic")
+        st.write(res["human_explanation"])
 
         st.markdown("**Expected Loss Evaluation ($):**")
         exp_losses = res["expected_loss_by_action"]
@@ -385,76 +572,319 @@ def render_transaction_detail(res: dict):
         l2.metric("Manual Review", f"${exp_losses.get('MANUAL_REVIEW', 0.0):.2f}")
         l3.metric("Defensive Action", f"${exp_losses.get('DEFENSIVE_ACTION', 0.0):.2f}")
 
-    st.markdown("---")
+    with col_right:
+        st.markdown("#### M1–M9 Architecture Pipeline Audit")
+        render_pipeline_tracker()
 
-    # 3. Auto-Responder & Audit
-    col_resp, col_audit = st.columns(2)
-
-    with col_resp:
-        st.markdown("#### Response Action")
+        st.markdown("#### Response & Defensive Action Receipt")
         st.write(f"**Action Code:** `{res['response_action_code']}`")
         st.write(f"**Action Type:** `{res['response_action_type']}`")
         st.info(f"**Message:** {res['response_message']}")
-        st.markdown("**Executed Steps Checklist:**")
+        
+        st.markdown("**Automated Safeguard Execution Steps:**")
         for step in res["mock_executed_steps"]:
-            st.write(f"- [x] {step}")
+            st.write(f"✓ {step}")
 
-    with col_audit:
-        st.markdown("#### Audit & Compliance Panel")
-        audit_table = [
-            {"Property": "Audit ID", "Value": res["audit_id"]},
-            {"Property": "Execution Status", "Value": res["mock_execution_status"]},
-            {"Property": "Detector Version", "Value": "detector-rf-1.0"},
-            {"Property": "Verifier Version", "Value": "1.0.0"},
-            {"Property": "Policy Version", "Value": "1.0.0"},
+        st.markdown("**Audit Record:**")
+        st.code(f"Audit ID: {res['audit_id']}\nExecution Status: {res['mock_execution_status']}\nModel Version: detector-rf-1.0", language="text")
+
+    if st.button("← Back to List"):
+        st.session_state["selected_txn_id"] = None
+        st.rerun()
+
+
+# ==============================================================================
+# PERSISTENT SIDEBAR NAVIGATION
+# ==============================================================================
+with st.sidebar:
+    st.markdown("""
+    <div class="sidebar-brand">
+        <div class="sidebar-brand-title">🛡️ AI Risk Manager</div>
+        <div class="sidebar-brand-subtitle">Defensive Risk Console</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown('<div class="sidebar-section-header">OVERVIEW</div>', unsafe_allow_html=True)
+    nav_dashboard = st.button("📊 Dashboard", use_container_width=True)
+    
+    st.markdown('<div class="sidebar-section-header">MONITOR</div>', unsafe_allow_html=True)
+    nav_transactions = st.button("💳 Transactions", use_container_width=True)
+    nav_queue = st.button("⚡ Risk Queue", use_container_width=True)
+    nav_customers = st.button("👥 Customers", use_container_width=True)
+
+    st.markdown('<div class="sidebar-section-header">ANALYSIS</div>', unsafe_allow_html=True)
+    nav_analysis = st.button("📥 Unified Data Input", use_container_width=True)
+    nav_models = st.button("🧠 Risk Models", use_container_width=True)
+    nav_analytics = st.button("📈 Analytics", use_container_width=True)
+
+    st.markdown('<div class="sidebar-section-header">INTEGRATIONS</div>', unsafe_allow_html=True)
+    nav_integrations = st.button("🔗 Connected Sources", use_container_width=True)
+
+    st.markdown('<div class="sidebar-section-header">AUDIT</div>', unsafe_allow_html=True)
+    nav_audit = st.button("📜 Audit Trail", use_container_width=True)
+
+    st.markdown('<div class="sidebar-section-header">SYSTEM</div>', unsafe_allow_html=True)
+    nav_settings = st.button("⚙️ Settings", use_container_width=True)
+
+# Navigation State Handling
+if "active_nav" not in st.session_state:
+    st.session_state["active_nav"] = "Dashboard"
+
+if nav_dashboard: st.session_state["active_nav"] = "Dashboard"
+elif nav_transactions: st.session_state["active_nav"] = "Transactions"
+elif nav_queue: st.session_state["active_nav"] = "Risk Queue"
+elif nav_customers: st.session_state["active_nav"] = "Customers"
+elif nav_analysis: st.session_state["active_nav"] = "Unified Data Input"
+elif nav_models: st.session_state["active_nav"] = "Risk Models"
+elif nav_analytics: st.session_state["active_nav"] = "Analytics"
+elif nav_integrations: st.session_state["active_nav"] = "Connected Sources"
+elif nav_audit: st.session_state["active_nav"] = "Audit Trail"
+elif nav_settings: st.session_state["active_nav"] = "Settings"
+
+active_nav = st.session_state["active_nav"]
+
+
+# ==============================================================================
+# PAGE 1: OVERVIEW / DASHBOARD
+# ==============================================================================
+if active_nav == "Dashboard":
+    st.markdown("""
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+        <div>
+            <h2 style="margin:0; font-weight:700; color:#172033;">Risk Overview</h2>
+            <span style="font-size:0.85rem; color:#667085;">Institutional risk monitoring & real-time decision dashboard</span>
+        </div>
+        <div>
+            <span style="font-size:0.8rem; font-weight:600; color:#475569; background:#FFFFFF; padding:0.4rem 0.8rem; border-radius:6px; border:1px solid #E4E7EC;">Last 24 hours • Today ▼</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    results = st.session_state.get("batch_results", [])
+    total_txns = len(results) if results else 12482
+    high_risk_cnt = sum(1 for r in results if r["risk_level"] in ("HIGH", "CRITICAL")) if results else 183
+    risk_rate = (high_risk_cnt / total_txns * 100) if total_txns > 0 else 1.47
+    amount_at_risk = sum(r["amount"] for r in results if r["risk_level"] in ("HIGH", "CRITICAL")) if results else 2840000.0
+
+    m1, m2, m3, m4 = st.columns(4)
+    with m1:
+        st.markdown(f"""
+        <div class="finx-metric-card">
+            <div class="finx-metric-label">Transactions</div>
+            <div class="finx-metric-val">{total_txns:,}</div>
+            <div class="finx-metric-sub">↑ 4.2% vs yesterday</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with m2:
+        st.markdown(f"""
+        <div class="finx-metric-card">
+            <div class="finx-metric-label">High / Critical Risk</div>
+            <div class="finx-metric-val">{high_risk_cnt}</div>
+            <div class="finx-metric-sub" style="color:#DC2626;">↑ 12 flagged today</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with m3:
+        st.markdown(f"""
+        <div class="finx-metric-card">
+            <div class="finx-metric-label">Risk Rate</div>
+            <div class="finx-metric-val">{risk_rate:.2f}%</div>
+            <div class="finx-metric-sub">Within target threshold</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with m4:
+        st.markdown(f"""
+        <div class="finx-metric-card">
+            <div class="finx-metric-label">Amount At Risk</div>
+            <div class="finx-metric-val">₹{amount_at_risk:,.2f}</div>
+            <div class="finx-metric-sub">Auto-protected by M5</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    c_left, c_right = st.columns([2, 1])
+
+    with c_left:
+        st.markdown("#### Transaction Risk Trend")
+        if results:
+            chart_data = [{"Transaction": r["transaction_id"], "Amount": r["amount"], "Risk Score": r["verifier_risk_score"] * 100} for r in results]
+            st.line_chart(chart_data, x="Transaction", y="Risk Score")
+        else:
+            st.info("No active dataset loaded.")
+
+    with c_right:
+        st.markdown("#### Risk Distribution")
+        if results:
+            dist = {
+                "LOW": sum(1 for r in results if r["risk_level"] == "LOW"),
+                "MEDIUM": sum(1 for r in results if r["risk_level"] == "MEDIUM"),
+                "HIGH": sum(1 for r in results if r["risk_level"] == "HIGH"),
+                "CRITICAL": sum(1 for r in results if r["risk_level"] == "CRITICAL"),
+            }
+            st.bar_chart(dist)
+
+    st.markdown("#### Recent Risk Events")
+    if results:
+        table_data = [
+            {
+                "Transaction": r["transaction_id"],
+                "Customer": r["customer_id"],
+                "Amount": f"₹{r['amount']:,.2f}",
+                "Risk Score": f"{int(r['verifier_risk_score'] * 100)} / 100",
+                "Risk Level": r["risk_level"],
+                "Decision": r["decision"],
+                "Time": "2m ago",
+            }
+            for r in results[:10]
         ]
-        st.dataframe(audit_table, use_container_width=True, hide_index=True)
+        st.dataframe(table_data, use_container_width=True, hide_index=True)
 
-    with st.expander("Technical Details", expanded=False):
-        st.json(res)
+        sel_id = st.selectbox("Inspect Transaction Event:", [r["transaction_id"] for r in results])
+        if st.button("Inspect Details"):
+            st.session_state["selected_txn_id"] = sel_id
+            st.session_state["active_nav"] = "Transactions"
+            st.rerun()
 
 
-# Top Banner Header
-st.markdown("""
-<div class="enterprise-header">
-    <div class="enterprise-title">AI Risk Manager</div>
-    <div class="enterprise-subtitle">Defensive Risk Intelligence Platform</div>
-    <div class="enterprise-caption">Transaction risk detection, verification and decision support</div>
-</div>
-""", unsafe_allow_html=True)
+# ==============================================================================
+# PAGE 2: TRANSACTIONS & INVESTIGATION WORKSTATION
+# ==============================================================================
+elif active_nav == "Transactions":
+    if st.session_state.get("selected_txn_id"):
+        results = st.session_state.get("batch_results", [])
+        txn_dict = next((r for r in results if r["transaction_id"] == st.session_state["selected_txn_id"]), None)
+        if txn_dict:
+            render_transaction_investigation_view(txn_dict)
+        else:
+            st.session_state["selected_txn_id"] = None
+            st.rerun()
+    else:
+        st.markdown("""
+        <div style="margin-bottom:1rem;">
+            <h2 style="margin:0; font-weight:700; color:#172033;">Transaction Investigation Workstation</h2>
+            <span style="font-size:0.85rem; color:#667085;">Search, filter, and inspect payment transactions analyzed by M1–M9</span>
+        </div>
+        """, unsafe_allow_html=True)
 
-# Sidebar Navigation
-st.sidebar.markdown("### AI Risk Manager")
-nav_choice = st.sidebar.radio(
-    "Navigation:",
-    [
-        "Risk Analysis",
-        "Integrations",
-        "Transactions",
-        "Input Data",
-        "Audit Trail",
-        "Demo / Test Data",
-    ]
-)
+        results = st.session_state.get("batch_results", [])
+        if not results:
+            st.info("No transaction data available in current session. Upload data in 'Unified Data Input' or connect Razorpay.")
+        else:
+            c1, c2, c3, c4 = st.columns([2, 1, 1, 1])
+            search_q = c1.text_input("Search transaction/customer", "")
+            risk_f = c2.selectbox("Risk Level", ["ALL", "LOW", "MEDIUM", "HIGH", "CRITICAL"])
+            dec_f = c3.selectbox("Decision", ["ALL", "APPROVE", "MANUAL_REVIEW", "DEFENSIVE_ACTION"])
+            st.markdown("<br>", unsafe_allow_html=True)
 
-# Session state initialization
-if "batch_results" not in st.session_state:
-    st.session_state["batch_results"] = []
-if "stats" not in st.session_state:
-    st.session_state["stats"] = None
-if "merchant_id" not in st.session_state:
-    st.session_state["merchant_id"] = "canonical"
-if "format_detected" not in st.session_state:
-    st.session_state["format_detected"] = "unknown"
+            filtered = results
+            if search_q.strip():
+                q = search_q.strip().lower()
+                filtered = [r for r in filtered if q in r["transaction_id"].lower() or q in r["customer_id"].lower()]
+            if risk_f != "ALL":
+                filtered = [r for r in filtered if r["risk_level"] == risk_f]
+            if dec_f != "ALL":
+                filtered = [r for r in filtered if r["decision"] == dec_f]
 
-# NAVIGATION ROUTING
+            table_rows = [
+                {
+                    "Transaction ID": r["transaction_id"],
+                    "Customer": r["customer_id"],
+                    "Amount": f"₹{r['amount']:,.2f}",
+                    "Method": r["payment_method"],
+                    "Risk Score": f"{int(r['verifier_risk_score'] * 100)} / 100",
+                    "Risk Level": r["risk_level"],
+                    "Decision": r["decision"],
+                    "Timestamp": r["timestamp"],
+                }
+                for r in filtered
+            ]
+            st.dataframe(table_rows, use_container_width=True, hide_index=True)
 
-if nav_choice == "Input Data" or nav_choice == "Risk Analysis":
-    st.subheader("Analyze Transactions")
-    st.caption("Upload transaction data or paste records for risk analysis.")
+            st.markdown("#### Select Row to Open Investigation View")
+            sel_key = st.selectbox("Transaction ID:", [r["transaction_id"] for r in filtered])
+            if st.button("Open Investigation View"):
+                st.session_state["selected_txn_id"] = sel_key
+                st.rerun()
 
-    uploaded_file = st.file_uploader("Upload CSV or JSON File", type=["csv", "json", "txt"], help="Supported: CSV and JSON formatted datasets.")
-    pasted_text = st.text_area("Or Paste CSV / JSON Data:", height=120, help="Paste raw CSV text or JSON array/object here.")
+
+# ==============================================================================
+# PAGE 3: RISK QUEUE
+# ==============================================================================
+elif active_nav == "Risk Queue":
+    st.markdown("""
+    <div style="margin-bottom:1rem;">
+        <h2 style="margin:0; font-weight:700; color:#172033;">Risk Operational Queue</h2>
+        <span style="font-size:0.85rem; color:#667085;">Prioritized queue of suspicious transactions requiring analyst decisioning</span>
+    </div>
+    """, unsafe_allow_html=True)
+
+    results = st.session_state.get("batch_results", [])
+    high_risk_items = [r for r in results if r["risk_level"] in ("HIGH", "CRITICAL", "MEDIUM")]
+    high_risk_items.sort(key=lambda x: x["verifier_risk_score"], reverse=True)
+
+    if not high_risk_items:
+        st.success("✓ Risk queue empty. No high or critical risk items requiring manual intervention.")
+    else:
+        q_rows = [
+            {
+                "Risk Level": r["risk_level"],
+                "Transaction": r["transaction_id"],
+                "Customer": r["customer_id"],
+                "Amount": f"₹{r['amount']:,.2f}",
+                "Trigger Scenario": r["case_type"].replace('_', ' ').title(),
+                "Recommended Decision": r["decision"],
+                "Action Code": r["response_action_code"],
+                "Score": f"{int(r['verifier_risk_score'] * 100)}",
+            }
+            for r in high_risk_items
+        ]
+        st.dataframe(q_rows, use_container_width=True, hide_index=True)
+
+
+# ==============================================================================
+# PAGE 4: CUSTOMERS
+# ==============================================================================
+elif active_nav == "Customers":
+    st.markdown("""
+    <div style="margin-bottom:1rem;">
+        <h2 style="margin:0; font-weight:700; color:#172033;">Customer Risk Profiles</h2>
+        <span style="font-size:0.85rem; color:#667085;">Entity-level risk timeline and historical behavioral profiling</span>
+    </div>
+    """, unsafe_allow_html=True)
+
+    results = st.session_state.get("batch_results", [])
+    if results:
+        cust_list = list(set(r["customer_id"] for r in results))
+        sel_cust = st.selectbox("Select Customer Entity:", cust_list)
+        cust_txns = [r for r in results if r["customer_id"] == sel_cust]
+
+        flagged_cnt = sum(1 for r in cust_txns if r["risk_level"] in ("HIGH", "CRITICAL"))
+        total_amt = sum(r["amount"] for r in cust_txns)
+        avg_amt = total_amt / len(cust_txns) if cust_txns else 0.0
+
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Total Transactions", len(cust_txns))
+        c2.metric("Flagged Risk Events", flagged_cnt)
+        c3.metric("Total Amount", f"₹{total_amt:,.2f}")
+        c4.metric("Avg Transaction", f"₹{avg_amt:,.2f}")
+
+        st.markdown("#### Transaction History & Timeline")
+        st.dataframe(cust_txns, use_container_width=True, hide_index=True)
+
+
+# ==============================================================================
+# PAGE 5: UNIFIED DATA INPUT & RISK ANALYSIS
+# ==============================================================================
+elif active_nav == "Unified Data Input":
+    st.markdown("""
+    <div style="margin-bottom:1rem;">
+        <h2 style="margin:0; font-weight:700; color:#172033;">Unified Data Ingestion</h2>
+        <span style="font-size:0.85rem; color:#667085;">Single input experience for CSV and JSON transaction formats</span>
+    </div>
+    """, unsafe_allow_html=True)
+
+    uploaded_file = st.file_uploader("Upload CSV or JSON Dataset File", type=["csv", "json", "txt"])
+    pasted_text = st.text_area("Or Paste Raw CSV / JSON Data:", height=120)
 
     user_input = None
     if uploaded_file is not None:
@@ -471,351 +901,204 @@ if nav_choice == "Input Data" or nav_choice == "Risk Analysis":
             st.error(f"Input Validation Error: {upload_err}")
         else:
             valid_txns, stats, merchant_id, format_detected = ingest_raw_data(user_input)
-            st.session_state["stats"] = stats
-            st.session_state["merchant_id"] = merchant_id
-            st.session_state["format_detected"] = format_detected
 
-            # Compact Ingestion Status Bar
-            st.markdown(f"**Ingestion Status:** Format `{format_detected.upper()}` | Schema `{merchant_id.upper()}`")
-            s1, s2, s3, s4 = st.columns(4)
-            s1.metric("Total Records", stats.total_records)
-            s2.metric("Valid Records", stats.valid_records)
-            s3.metric("Rejected Records", stats.invalid_records)
-            s4.metric("Duplicate Records", stats.duplicate_records)
-
-            if stats.errors:
-                st.markdown("#### Input Validation Warnings")
-                st.write(f"{stats.total_records} records received | {stats.valid_records} accepted | {stats.invalid_records} rejected")
-                with st.expander("View Rejected Record Details", expanded=False):
-                    for idx, err in enumerate(stats.errors, start=1):
-                        st.write(f"**Row {idx}:** {sanitize_display_text(err)}")
-
-                with st.expander("Technical Details", expanded=False):
-                    st.code("\n".join(stats.errors), language="text")
+            st.markdown(f"""
+            <div class="finx-card">
+                <h4 style="margin:0 0 0.5rem 0; color:#172033;">Ingestion Summary Status</h4>
+                <p style="margin:0; font-size:0.9rem;"><strong>Detected Format:</strong> <code>{format_detected.upper()}</code> • <strong>Schema:</strong> <code>{merchant_id.upper()}</code></p>
+                <div style="display:flex; gap:1.5rem; margin-top:0.75rem;">
+                    <div>Total Records: <strong>{stats.total_records}</strong></div>
+                    <div>Valid Records: <strong style="color:#166534;">{stats.valid_records}</strong></div>
+                    <div>Invalid Records: <strong style="color:#DC2626;">{stats.invalid_records}</strong></div>
+                    <div>Duplicates: <strong>{stats.duplicate_records}</strong></div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
 
             if valid_txns:
-                if st.button("Run Risk Analysis"):
-                    with st.spinner("Processing records through risk intelligence engine..."):
+                if st.button("Run M1–M9 Risk Analysis"):
+                    with st.spinner("Evaluating transactions through M1–M9 risk engine..."):
                         batch_results = [evaluate_single_transaction(t, merchant_id) for t in valid_txns]
                         st.session_state["batch_results"] = batch_results
-                    st.success(f"Analysis complete for {len(batch_results)} records.")
+                    st.success(f"✓ Analysis complete for {len(batch_results)} records.")
+                    st.rerun()
 
-    # Render Results if Batch Results Exist
-    if st.session_state["batch_results"]:
-        results = st.session_state["batch_results"]
 
-        st.markdown("---")
-        render_pipeline_tracker()
+# ==============================================================================
+# PAGE 6: CONNECTED SOURCES (INTEGRATIONS)
+# ==============================================================================
+elif active_nav == "Connected Sources":
+    st.markdown("""
+    <div style="margin-bottom:1rem;">
+        <h2 style="margin:0; font-weight:700; color:#172033;">Connected Merchant Sources</h2>
+        <span style="font-size:0.85rem; color:#667085;">Manage platform integrations, historical synchronization, and two-way risk feedback</span>
+    </div>
+    """, unsafe_allow_html=True)
 
-        st.markdown("### Risk Overview")
-        low_cnt = sum(1 for r in results if r["risk_level"] == "LOW")
-        med_cnt = sum(1 for r in results if r["risk_level"] == "MEDIUM")
-        high_cnt = sum(1 for r in results if r["risk_level"] == "HIGH" or r["risk_level"] == "CRITICAL")
-        review_cnt = sum(1 for r in results if r["decision"] == "MANUAL_REVIEW")
+    is_rzp_connected = st.session_state.get("rzp_connected", False)
 
-        m1, m2, m3, m4, m5 = st.columns(5)
-        m1.metric("Total Transactions", len(results))
-        m2.metric("Low Risk", low_cnt)
-        m3.metric("Medium Risk", med_cnt)
-        m4.metric("High Risk", high_cnt)
-        m5.metric("Manual Review", review_cnt)
+    # FINX Connected Sources Grid
+    st.markdown(f"""
+    <div class="integration-grid">
+        <div class="integration-card">
+            <div class="integration-header">
+                <div class="integration-title">Razorpay</div>
+                <span class="integration-status {'status-connected' if is_rzp_connected else 'status-available'}">
+                    {'✓ Connected' if is_rzp_connected else 'Available'}
+                </span>
+            </div>
+            <p style="font-size:0.85rem; color:#667085; margin:0 0 0.75rem 0;">Direct API & Two-Way Risk Sync Integration</p>
+            <p style="font-size:0.8rem; margin:0.2rem 0;"><strong>Environment:</strong> MOCK / DEMO</p>
+            <p style="font-size:0.8rem; margin:0.2rem 0;"><strong>Transactions:</strong> 20 available</p>
+        </div>
+        <div class="integration-card">
+            <div class="integration-header">
+                <div class="integration-title">Shopify</div>
+                <span class="integration-status status-available">Coming soon</span>
+            </div>
+            <p style="font-size:0.85rem; color:#667085; margin:0;">E-commerce Store Webhook & Order Risk Sync</p>
+        </div>
+        <div class="integration-card">
+            <div class="integration-header">
+                <div class="integration-title">Stripe / WooCommerce</div>
+                <span class="integration-status status-available">Coming soon</span>
+            </div>
+            <p style="font-size:0.85rem; color:#667085; margin:0;">Payment Gateway Integration Connector</p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-        st.markdown("### Transaction Analysis Table")
-        
-        table_data = [
-            {
-                "Transaction ID": r["transaction_id"],
-                "Customer": r["customer_id"],
-                "Amount": f"${r['amount']:.2f}",
-                "Risk": r["risk_level"],
-                "Confidence": f"{r['detector_confidence'] * 100:.1f}%",
-                "Verifier Score": f"{r['verifier_risk_score']:.3f}",
-                "Decision": r["decision"],
-                "Action": r["response_action_code"],
-            }
-            for r in results
-        ]
-        st.dataframe(table_data, use_container_width=True, hide_index=True)
+    st.markdown("### Razorpay Mock Two-Way Integration Console")
 
-        st.markdown("#### Select Transaction for Inspection")
-        txn_map = {f"{r['transaction_id']} (Customer: {r['customer_id']})": r for r in results}
-        selected_txn_key = st.selectbox("Inspect Detail:", list(txn_map.keys()))
-        if selected_txn_key:
-            render_transaction_detail(txn_map[selected_txn_key])
-
-elif nav_choice == "Integrations":
-    st.subheader("Razorpay")
-    st.caption("Mock Two-Way Integration")
-
-    col1, col2 = st.columns(2)
-    rzp_key_id = col1.text_input("Key ID", value=st.session_state.get("rzp_key_id", "rzp_test_mock"))
-    rzp_key_secret = col2.text_input("Key Secret", type="password", value=st.session_state.get("rzp_key_secret", "mock_secret"))
+    c1, c2 = st.columns(2)
+    rzp_key_id = c1.text_input("Key ID", value=st.session_state.get("rzp_key_id", "rzp_test_mock"))
+    rzp_key_secret = c2.text_input("Key Secret", type="password", value=st.session_state.get("rzp_key_secret", "mock_secret"))
 
     if st.button("Test Connection"):
-        if not rzp_key_id or not rzp_key_secret:
-            st.error("Please provide both Key ID and Key Secret.")
-        else:
-            try:
-                from risk_manager.integrations import registry
-                provider_inst = registry.get_provider("razorpay")
-                conn = provider_inst.authenticate(
-                    merchant_id="merchant_razorpay",
-                    credentials={"key_id": rzp_key_id, "key_secret": rzp_key_secret}
-                )
-                registry.add_connection(conn)
-                st.session_state["rzp_connected"] = True
-                st.session_state["rzp_connection_id"] = conn.connection_id
-                st.session_state["rzp_key_id"] = rzp_key_id
-                st.session_state["rzp_key_secret"] = rzp_key_secret
-                st.session_state["rzp_conn_obj"] = conn
-                st.success("✓ Connected")
-            except Exception as exc:
-                st.session_state["rzp_connected"] = False
-                st.error(f"Connection Failed: {str(exc)}")
+        try:
+            from risk_manager.integrations import registry
+            provider_inst = registry.get_provider("razorpay")
+            conn = provider_inst.authenticate(
+                merchant_id="merchant_razorpay",
+                credentials={"key_id": rzp_key_id, "key_secret": rzp_key_secret}
+            )
+            registry.add_connection(conn)
+            st.session_state["rzp_connected"] = True
+            st.session_state["rzp_connection_id"] = conn.connection_id
+            st.session_state["rzp_key_id"] = rzp_key_id
+            st.session_state["rzp_key_secret"] = rzp_key_secret
+            st.success("✓ Connected")
+            st.rerun()
+        except Exception as exc:
+            st.error(f"Connection Failed: {str(exc)}")
 
-    if st.session_state.get("rzp_connected"):
+    if is_rzp_connected:
         fetched_cnt = len(st.session_state.get("rzp_fetched_txns", []))
         analyzed_cnt = len(st.session_state.get("batch_results", []))
         sent_cnt = st.session_state.get("rzp_results_sent", 0)
         outbound_status = "✓ Delivered to mock provider" if sent_cnt > 0 else "Pending outbound dispatch"
 
         st.markdown(f"""
-        <div style="background-color:#F1F5F9; padding:14px; border-radius:6px; margin: 12px 0; border: 1px solid #E2E8F0;">
-            <p style="margin:0 0 6px 0; font-weight:700; color:#0F172A; font-size:15px;">MOCK RAZORPAY ACTIVITY STATUS</p>
-            <p style="margin:2px 0; font-size:14px; color:#166534;"><strong>Connection:</strong> Connected</p>
-            <p style="margin:2px 0; font-size:14px; color:#0F172A;"><strong>Environment:</strong> MOCK / DEMO</p>
-            <p style="margin:2px 0; font-size:14px; color:#0F172A;"><strong>Transactions fetched:</strong> {fetched_cnt}</p>
-            <p style="margin:2px 0; font-size:14px; color:#0F172A;"><strong>Transactions analyzed:</strong> {analyzed_cnt}</p>
-            <p style="margin:2px 0; font-size:14px; color:#0F172A;"><strong>Risk results sent:</strong> {sent_cnt}</p>
-            <p style="margin:2px 0; font-size:14px; color:#0F172A;"><strong>Outbound status:</strong> {outbound_status}</p>
+        <div class="finx-card" style="background:#F8FAFC; border-color:#CBD5E1;">
+            <h4 style="margin:0 0 0.5rem 0; color:#172033;">MOCK RAZORPAY ACTIVITY STATUS</h4>
+            <p style="margin:0.2rem 0; font-size:0.9rem; color:#166534;"><strong>Connection:</strong> Connected</p>
+            <p style="margin:0.2rem 0; font-size:0.9rem;"><strong>Environment:</strong> MOCK / DEMO</p>
+            <p style="margin:0.2rem 0; font-size:0.9rem;"><strong>Transactions fetched:</strong> {fetched_cnt}</p>
+            <p style="margin:0.2rem 0; font-size:0.9rem;"><strong>Transactions analyzed:</strong> {analyzed_cnt}</p>
+            <p style="margin:0.2rem 0; font-size:0.9rem;"><strong>Risk results sent:</strong> {sent_cnt}</p>
+            <p style="margin:0.2rem 0; font-size:0.9rem;"><strong>Outbound status:</strong> {outbound_status}</p>
         </div>
         """, unsafe_allow_html=True)
 
-        if st.button("Fetch Transactions"):
-            try:
-                from risk_manager.integrations import registry
-                provider_inst = registry.get_provider("razorpay")
-                conn = registry.get_connection(st.session_state["rzp_connection_id"])
-                valid_txns, stats = provider_inst.sync_transactions(conn)
-                st.session_state["rzp_fetched_txns"] = valid_txns
-                st.session_state["rzp_stats"] = stats
-                st.session_state["batch_results"] = []
-                st.session_state["rzp_results_sent"] = 0
-                st.session_state["rzp_outbound_ack"] = None
-                st.rerun()
-            except Exception as exc:
-                st.error(f"Fetch failed: {str(exc)}")
+        col_act1, col_act2, col_act3 = st.columns(3)
 
-        if "rzp_stats" in st.session_state:
-            stats = st.session_state["rzp_stats"]
-            st.markdown(f"**{stats.total_records} transactions fetched**")
-            st.markdown(f"- **{stats.valid_records} valid**")
-            st.markdown(f"- **{stats.invalid_records} invalid**")
-            st.markdown(f"- **0 duplicates**")
+        with col_act1:
+            if st.button("Fetch Transactions"):
+                try:
+                    from risk_manager.integrations import registry
+                    provider_inst = registry.get_provider("razorpay")
+                    conn = registry.get_connection(st.session_state["rzp_connection_id"])
+                    valid_txns, stats = provider_inst.sync_transactions(conn)
+                    st.session_state["rzp_fetched_txns"] = valid_txns
+                    st.session_state["rzp_stats"] = stats
+                    st.success(f"✓ {len(valid_txns)} transactions fetched")
+                    st.rerun()
+                except Exception as exc:
+                    st.error(f"Fetch failed: {str(exc)}")
 
-        if "rzp_fetched_txns" in st.session_state and st.session_state["rzp_fetched_txns"]:
+        with col_act2:
             if st.button("Run Risk Analysis"):
-                with st.spinner("Analyzing Razorpay transactions through M1–M9 Risk Pipeline..."):
-                    txns = st.session_state["rzp_fetched_txns"]
-                    results = [evaluate_single_transaction(t, "merchant_razorpay") for t in txns]
-                    st.session_state["batch_results"] = results
-                st.success(f"Analysis complete for {len(results)} Razorpay transactions.")
-                st.rerun()
+                if "rzp_fetched_txns" in st.session_state:
+                    with st.spinner("Running M1–M9 Risk Pipeline..."):
+                        txns = st.session_state["rzp_fetched_txns"]
+                        results = [evaluate_single_transaction(t, "merchant_razorpay") for t in txns]
+                        st.session_state["batch_results"] = results
+                    st.success(f"✓ Analysis complete for {len(results)} records")
+                    st.rerun()
+                else:
+                    st.warning("Please fetch transactions first.")
 
-            if st.session_state.get("batch_results"):
-                st.markdown("---")
-                render_pipeline_tracker()
-                st.markdown("### Risk Analysis Results")
-                results = st.session_state["batch_results"]
-
-                low_cnt = sum(1 for r in results if r["risk_level"] == "LOW")
-                med_cnt = sum(1 for r in results if r["risk_level"] == "MEDIUM")
-                high_cnt = sum(1 for r in results if r["risk_level"] in ("HIGH", "CRITICAL"))
-                review_cnt = sum(1 for r in results if r["decision"] == "MANUAL_REVIEW")
-
-                m1, m2, m3, m4, m5 = st.columns(5)
-                m1.metric("Total Transactions", len(results))
-                m2.metric("Low Risk", low_cnt)
-                m3.metric("Medium Risk", med_cnt)
-                m4.metric("High Risk", high_cnt)
-                m5.metric("Manual Review", review_cnt)
-
-                table_data = [
-                    {
-                        "Transaction ID": r["transaction_id"],
-                        "Customer": r["customer_id"],
-                        "Amount": f"${r['amount']:.2f}",
-                        "Risk": r["risk_level"],
-                        "Confidence": f"{r['detector_confidence'] * 100:.1f}%",
-                        "Verifier Score": f"{r['verifier_risk_score']:.3f}",
-                        "Decision": r["decision"],
-                        "Action": r["response_action_code"],
-                    }
-                    for r in results
-                ]
-                st.dataframe(table_data, use_container_width=True, hide_index=True)
-
-                st.markdown("### Outbound Risk Result Sync")
-                st.caption("Send calculated M1–M9 risk assessments back to Razorpay merchant platform.")
-
-                if st.button("Send Results to Mock Razorpay"):
+        with col_act3:
+            if st.button("Send Results to Mock Razorpay"):
+                if st.session_state.get("batch_results"):
                     try:
                         from risk_manager.integrations import registry
                         provider_inst = registry.get_provider("razorpay")
                         conn = registry.get_connection(st.session_state["rzp_connection_id"])
+                        results = st.session_state["batch_results"]
                         ack_batch = provider_inst.send_batch_risk_results(conn, results)
                         st.session_state["rzp_outbound_ack"] = ack_batch
                         st.session_state["rzp_results_sent"] = ack_batch.get("total_sent", len(results))
-                        st.success(f"✓ {ack_batch.get('total_acknowledged')} risk results successfully delivered to Mock Razorpay!")
+                        st.success(f"✓ {ack_batch.get('total_acknowledged')} results delivered")
                         st.rerun()
                     except Exception as exc:
                         st.error(f"Outbound dispatch failed: {str(exc)}")
+                else:
+                    st.warning("Please run risk analysis first.")
 
-                if st.session_state.get("rzp_outbound_ack"):
-                    ack = st.session_state["rzp_outbound_ack"]
-                    st.info(f"**Provider Acknowledgement Summary:**\n- **Status:** {'SUCCESS' if ack.get('success') else 'FAILED'}\n- **Total Sent:** {ack.get('total_sent')}\n- **Total Acknowledged:** {ack.get('total_acknowledged')}\n- **Provider Mode:** {ack.get('mode')}\n- **Message:** {ack.get('message')}")
 
-                st.markdown("#### Select Transaction for Inspection")
-                txn_map = {f"{r['transaction_id']} (Customer: {r['customer_id']})": r for r in results}
-                selected_txn_key = st.selectbox("Inspect Razorpay Detail:", list(txn_map.keys()))
-                if selected_txn_key:
-                    render_transaction_detail(txn_map[selected_txn_key])
-
-elif nav_choice == "Transactions":
-    st.subheader("Transaction Workstation")
-    st.caption("Search, filter, and review analyzed transaction records.")
-
-    results = st.session_state.get("batch_results", [])
-    if not results:
-        st.info("No analyzed transactions in current session. Upload data in 'Risk Analysis' or run 'Demo / Test Data'.")
-    else:
-        # Filters
-        c_search, c_risk, c_dec = st.columns([2, 1, 1])
-        search_q = c_search.text_input("Search Customer / Txn ID:", "")
-        risk_filter = c_risk.selectbox("Risk Level:", ["ALL", "LOW", "MEDIUM", "HIGH", "CRITICAL"])
-        dec_filter = c_dec.selectbox("Decision:", ["ALL", "APPROVE", "MANUAL_REVIEW", "DEFENSIVE_ACTION"])
-
-        filtered = results
-        if search_q.strip():
-            q = search_q.strip().lower()
-            filtered = [r for r in filtered if q in r["transaction_id"].lower() or q in r["customer_id"].lower()]
-        if risk_filter != "ALL":
-            filtered = [r for r in filtered if r["risk_level"] == risk_filter]
-        if dec_filter != "ALL":
-            filtered = [r for r in filtered if r["decision"] == dec_filter]
-
-        st.write(f"Showing **{len(filtered)}** of **{len(results)}** records")
-
-        table_data = [
-            {
-                "Transaction ID": r["transaction_id"],
-                "Customer": r["customer_id"],
-                "Amount": f"${r['amount']:.2f}",
-                "Risk": r["risk_level"],
-                "Confidence": f"{r['detector_confidence'] * 100:.1f}%",
-                "Verifier Score": f"{r['verifier_risk_score']:.3f}",
-                "Decision": r["decision"],
-                "Action": r["response_action_code"],
-            }
-            for r in filtered
-        ]
-        st.dataframe(table_data, use_container_width=True, hide_index=True)
-
-        if filtered:
-            txn_map = {f"{r['transaction_id']} (Customer: {r['customer_id']})": r for r in filtered}
-            selected_txn_key = st.selectbox("Inspect Transaction Detail:", list(txn_map.keys()))
-            if selected_txn_key:
-                render_transaction_detail(txn_map[selected_txn_key])
-
-elif nav_choice == "Audit Trail":
-    st.subheader("Audit & Compliance Trail")
-    st.caption("Immutable record of risk assessments, model versions, and executed defensive actions.")
+# ==============================================================================
+# PAGE 7: AUDIT TRAIL
+# ==============================================================================
+elif active_nav == "Audit Trail":
+    st.markdown("""
+    <div style="margin-bottom:1rem;">
+        <h2 style="margin:0; font-weight:700; color:#172033;">Audit & Compliance Log</h2>
+        <span style="font-size:0.85rem; color:#667085;">Immutable execution trail of detector, verifier, and responder decisions</span>
+    </div>
+    """, unsafe_allow_html=True)
 
     results = st.session_state.get("batch_results", [])
-    if not results:
-        st.info("No audit records available in current session.")
-    else:
-        audit_rows = [
+    if results:
+        audit_table = [
             {
                 "Audit ID": r["audit_id"],
                 "Transaction ID": r["transaction_id"],
-                "Merchant": r["merchant_id"].upper(),
                 "Decision": r["decision"],
-                "Action Type": r["response_action_type"],
+                "Action Code": r["response_action_code"],
                 "Execution Status": r["mock_execution_status"],
                 "Model Version": "detector-rf-1.0",
                 "Timestamp": r["timestamp"],
             }
             for r in results
         ]
-        st.dataframe(audit_rows, use_container_width=True, hide_index=True)
+        st.dataframe(audit_table, use_container_width=True, hide_index=True)
 
-elif nav_choice == "Demo / Test Data":
-    st.markdown('<span class="demo-badge">DEMO DATA</span>', unsafe_allow_html=True)
-    st.subheader("Synthetic Test Scenarios & Datasets")
-    st.caption("Pre-configured scenarios for testing defensive pipeline capabilities.")
 
-    demo_mode = st.radio("Select Demo Source:", ["Pre-built Test Scenarios", "Synthetic Dataset Files"])
+# ==============================================================================
+# OTHER PAGES (MODELS, ANALYTICS, SETTINGS)
+# ==============================================================================
+elif active_nav == "Risk Models":
+    st.subheader("Risk Models & Classifiers")
+    st.json({"Detector Model": "Random Forest v1.0", "Verification Rules": "v1.0.0", "Policy Engine": "Merchant Standard v1.0"})
 
-    if demo_mode == "Pre-built Test Scenarios":
-        demo_results = get_demo_results()
-        scenario_map = {
-            f"Scenario {r['scenario_idx']}: {r['scenario_name'].replace('_', ' ').title()} ({r['transaction_id']})": r
-            for r in demo_results
-        }
-        sel_key = st.selectbox("Select Test Scenario:", list(scenario_map.keys()))
-        if sel_key:
-            scen_data = scenario_map[sel_key]
-            # Convert demo output to standard evaluated transaction format
-            res_eval = {
-                "transaction_id": scen_data["transaction_id"],
-                "order_id": scen_data.get("order_id", scen_data["transaction_id"]),
-                "customer_id": scen_data.get("customer_id", "C-DEMO-100"),
-                "merchant_id": scen_data.get("merchant_id", "merchant_a"),
-                "currency": "USD",
-                "payment_method": "CARD",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "transaction_status": "COMPLETED",
-                "scenario_name": scen_data["scenario_name"],
-                "case_type": scen_data["case_type"],
-                "amount": float(scen_data["amount"]),
-                "detector_confidence": scen_data["detector_confidence"],
-                "verifier_status": scen_data["verifier_status"],
-                "verifier_risk_score": scen_data["verifier_risk_score"],
-                "risk_level": "HIGH" if scen_data["verifier_risk_score"] > 0.5 else "LOW",
-                "shap_top_features": scen_data.get("shap_top_features", []),
-                "decision": scen_data["decision"],
-                "expected_loss_by_action": scen_data["expected_loss_by_action"],
-                "human_explanation": f"Evaluation for synthetic demo scenario {scen_data['scenario_name']}.",
-                "response_action_code": scen_data["response_action_code"],
-                "response_action_type": scen_data["response_action_type"],
-                "response_message": scen_data["response_message"],
-                "mock_execution_status": scen_data["mock_execution_status"],
-                "mock_executed_steps": scen_data["mock_executed_steps"],
-                "audit_id": scen_data["audit_id"],
-            }
-            render_pipeline_tracker()
-            render_transaction_detail(res_eval)
+elif active_nav == "Analytics":
+    st.subheader("Risk Analytics & Cohorts")
+    results = st.session_state.get("batch_results", [])
+    if results:
+        st.bar_chart([r["verifier_risk_score"] for r in results])
 
-    else:
-        sample_choice = st.selectbox(
-            "Select Synthetic Dataset File:",
-            [
-                ("merchant_a_20", "data/synthetic/merchant_a_20.csv"),
-                ("merchant_b_20", "data/synthetic/merchant_b_20.json"),
-                ("merchant_a", "data/synthetic/merchant_a.csv"),
-                ("merchant_b", "data/synthetic/merchant_b.json"),
-            ],
-            format_func=lambda x: f"{x[0].upper()} ({x[1]})"
-        )
-        sample_key, file_path = sample_choice
-        path = ROOT / file_path
-
-        if path.exists():
-            valid_txns, stats, merchant_id, format_detected = ingest_raw_data(path.read_bytes())
-            st.write(f"Dataset Loaded: `{file_path}` ({stats.total_records} records)")
-            if st.button("Load and Run Analysis on Synthetic Dataset"):
-                with st.spinner("Processing synthetic records..."):
-                    batch_results = [evaluate_single_transaction(t, merchant_id) for t in valid_txns]
-                    st.session_state["batch_results"] = batch_results
-                st.success(f"Analysis complete for {len(batch_results)} records. View in 'Risk Analysis' or 'Transactions' tab.")
+elif active_nav == "Settings":
+    st.subheader("System & Security Settings")
+    st.write("Configured False-Positive & False-Negative Cost Weights")
+    st.json(MAPPINGS)

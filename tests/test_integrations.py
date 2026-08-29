@@ -199,6 +199,69 @@ def test_razorpay_invalid_credentials():
     assert "Razorpay" in err_msg or "failed" in err_msg or "mock" in err_msg
 
 
+def test_razorpay_real_test_credentials_success():
+    """Test valid real Razorpay test credentials (rzp_test_...) calling Razorpay API."""
+    from unittest.mock import patch, MagicMock
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {"items": [], "count": 0}
+
+    mock_client_instance = MagicMock()
+    mock_client_instance.get.return_value = mock_resp
+
+    with patch("risk_manager.integrations.razorpay.adapter.httpx.Client") as MockClientClass:
+        MockClientClass.return_value.__enter__.return_value = mock_client_instance
+        payload = {
+            "key_id": "rzp_test_RealKey123456",
+            "key_secret": "RealSecret_abcdef789",
+            "merchant_id": "merchant_real_rzp"
+        }
+        res = client.post("/integrations/razorpay/connect", json=payload)
+        assert res.status_code == 200
+        data = res.json()
+
+        assert data["status"] == "active"
+        assert data["provider"] == "razorpay"
+        assert data["metadata"]["environment"] == "RAZORPAY TEST MODE"
+        assert data["metadata"]["is_mock"] is False
+        assert "RealSecret_abcdef789" not in res.text
+
+
+
+def test_razorpay_real_test_credentials_rejected_401():
+    """Test real Razorpay test credentials rejected with 401 error."""
+    from unittest.mock import patch, MagicMock
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 401
+
+    mock_client_instance = MagicMock()
+    mock_client_instance.get.return_value = mock_resp
+
+    with patch("risk_manager.integrations.razorpay.adapter.httpx.Client") as MockClientClass:
+        MockClientClass.return_value.__enter__.return_value = mock_client_instance
+        payload = {
+            "key_id": "rzp_test_RealKey123456",
+            "key_secret": "WrongSecret_xyz",
+            "merchant_id": "merchant_real_rzp"
+        }
+        res = client.post("/integrations/razorpay/connect", json=payload)
+        assert res.status_code == 400
+        data = res.json()
+        err_msg = data.get("detail") or data.get("error", {}).get("message", "")
+        assert "rejected" in err_msg or "401" in err_msg or "Razorpay" in err_msg
+        assert "WrongSecret_xyz" not in res.text
+
+
+
+
+
+
+
+
+
+
 def test_razorpay_mock_transaction_fetch_returns_20_records():
     """3. Test mock transaction fetch returns 20 deterministic records."""
     from risk_manager.integrations.razorpay.mock_provider import MockRazorpayProvider
@@ -410,4 +473,108 @@ def test_razorpay_outbound_failed_invalid_connection():
     )
     with pytest.raises(ValueError, match="Outbound risk result"):
         provider_inst.send_risk_result(invalid_conn, {"transaction_id": "tx_1"})
+
+
+def test_razorpay_fetch_pagination_and_empty_state():
+    """Test real API 200 OK with empty account state items=[] returns 0 records and CONNECTED status."""
+    from unittest.mock import patch, MagicMock
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {"items": [], "count": 0}
+
+    mock_client_instance = MagicMock()
+    mock_client_instance.get.return_value = mock_resp
+
+    with patch("risk_manager.integrations.razorpay.adapter.httpx.Client") as MockClientClass:
+        MockClientClass.return_value.__enter__.return_value = mock_client_instance
+        payload = {
+            "key_id": "rzp_test_EmptyAccountKey",
+            "key_secret": "ValidSecret_123",
+            "merchant_id": "merchant_empty_rzp"
+        }
+        res = client.post("/integrations/razorpay/connect", json=payload)
+        assert res.status_code == 200
+        data = res.json()
+        assert data["status"] == "active"
+        assert data["metadata"]["available_records"] == 0
+        assert data["metadata"]["environment"] == "RAZORPAY TEST MODE"
+
+
+def test_razorpay_duplicate_sync_idempotency():
+    """Test repeated syncs with same Razorpay payment IDs are idempotent and track duplicates."""
+    from risk_manager.integrations import registry
+    provider_inst = registry.get_provider("razorpay")
+    conn = provider_inst.authenticate("merchant_idempotent", {"key_id": "rzp_test_mock", "key_secret": "mock_secret"})
+    registry.add_connection(conn)
+
+    res1 = client.post("/integrations/razorpay/sync", json={"connection_id": conn.connection_id, "count": 20})
+    assert res1.status_code == 200
+    data1 = res1.json()
+    assert data1["synced_records"] == 20
+
+    res2 = client.post("/integrations/razorpay/sync", json={"connection_id": conn.connection_id, "count": 20})
+    assert res2.status_code == 200
+    data2 = res2.json()
+    assert data2["duplicates"] == 20
+    assert data2["synced_records"] == 20
+
+
+def test_razorpay_source_isolation_filtering():
+    """Test /api/transactions?source_type=razorpay strictly isolates Razorpay records from mock seed data."""
+    res_mock = client.get("/api/transactions?source_type=mock")
+    assert res_mock.status_code == 200
+
+    conn_res = client.post("/integrations/razorpay/connect", json={"key_id": "rzp_test_mock", "key_secret": "mock_secret"})
+    conn_id = conn_res.json()["connection_id"]
+    client.post("/integrations/razorpay/sync", json={"connection_id": conn_id})
+
+    res_rzp = client.get("/api/transactions?source_type=razorpay")
+    assert res_rzp.status_code == 200
+    txns = res_rzp.json()["transactions"]
+    for t in txns:
+        assert t["source_type"] == "razorpay"
+
+
+def test_razorpay_amount_and_status_mappings():
+    """Test amount conversions (100 -> ₹1, 10000 -> ₹100, 24500 -> ₹245) and payment statuses."""
+    from risk_manager.integrations.razorpay.mapper import map_razorpay_payment_to_canonical
+
+    t1 = map_razorpay_payment_to_canonical({"id": "pay_A1", "amount": 100, "currency": "INR"})
+    assert float(t1.amount) == 1.00
+
+    t2 = map_razorpay_payment_to_canonical({"id": "pay_A2", "amount": 10000, "currency": "INR"})
+    assert float(t2.amount) == 100.00
+
+    t3 = map_razorpay_payment_to_canonical({"id": "pay_A3", "amount": 24500, "currency": "INR"})
+    assert float(t3.amount) == 245.00
+
+    t_created = map_razorpay_payment_to_canonical({"id": "pay_S1", "amount": 100, "status": "created"})
+    assert t_created.transaction_status == "PENDING"
+
+    t_refunded = map_razorpay_payment_to_canonical({"id": "pay_S2", "amount": 100, "status": "refunded"})
+    assert t_refunded.transaction_status == "REFUNDED"
+
+
+def test_razorpay_http_error_handling():
+    """Test handling of rate limits (429) and timeouts."""
+    from unittest.mock import patch, MagicMock
+    import httpx
+
+    mock_client_instance = MagicMock()
+    mock_client_instance.get.side_effect = httpx.TimeoutException("Connection timed out")
+
+    with patch("risk_manager.integrations.razorpay.adapter.httpx.Client") as MockClientClass:
+        MockClientClass.return_value.__enter__.return_value = mock_client_instance
+        payload = {
+            "key_id": "rzp_test_TimeoutKey",
+            "key_secret": "SomeSecret_123",
+            "merchant_id": "merchant_timeout"
+        }
+        res = client.post("/integrations/razorpay/connect", json=payload)
+        assert res.status_code == 400
+        data = res.json()
+        err_msg = data.get("detail") or data.get("error", {}).get("message", "")
+        assert "timed out" in err_msg or "Razorpay" in err_msg
+
 

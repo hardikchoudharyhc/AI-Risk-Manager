@@ -59,9 +59,9 @@ def test_process_valid_json_array_request():
 
     # Decision Contract
     dec = item["decision"]
-    assert dec["final_decision"] in {"APPROVE", "MANUAL_REVIEW", "DEFENSIVE_ACTION"}
+    assert dec["final_decision"] in {"ALLOW", "MONITOR", "MANUAL_REVIEW", "BLOCK", "APPROVE", "DEFENSIVE_ACTION"}
     assert "policy" in dec
-    assert "APPROVE" in dec["expected_losses_by_action"]
+    assert "ALLOW" in dec["expected_losses_by_action"] or "APPROVE" in dec["expected_losses_by_action"]
     assert isinstance(dec["rationale"], list)
 
     # Response Contract
@@ -182,7 +182,7 @@ def test_risk_analyze_valid_request():
     assert 0.0 <= data["verifier_risk_score"] <= 1.0
     assert isinstance(data["evidence_reasons"], list)
     assert isinstance(data["shap_explanation"], list)
-    assert data["decision"] in {"APPROVE", "MANUAL_REVIEW", "DEFENSIVE_ACTION"}
+    assert data["decision"] in {"ALLOW", "MONITOR", "MANUAL_REVIEW", "BLOCK", "APPROVE", "DEFENSIVE_ACTION"}
     assert isinstance(data["expected_losses"], dict)
     assert "APPROVE" in data["expected_losses"]
     assert "MANUAL_REVIEW" in data["expected_losses"]
@@ -243,3 +243,42 @@ def test_risk_analyze_end_to_end_scenarios():
     assert data["transaction_id"] == "TXN-NORM-100"
     assert data["case_type"] == "normal"
     assert data["verifier_status"] == "VERIFIED_NOT_SUSPICIOUS"
+
+
+def test_api_transactions_and_detail_endpoints():
+    """Test GET /api/transactions and GET /api/transactions/{id}."""
+    resp = client.get("/api/transactions")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "transactions" in body
+    assert "total" in body
+    assert body["total"] >= 1
+
+    txn_id = body["transactions"][0]["transaction"]["transaction_id"]
+    detail_resp = client.get(f"/api/transactions/{txn_id}")
+    assert detail_resp.status_code == 200
+    detail = detail_resp.json()
+    assert detail["transaction"]["transaction_id"] == txn_id
+
+
+def test_api_risk_queue_and_audit():
+    """Test GET /api/risk/queue and GET /api/audit."""
+    q_resp = client.get("/api/risk/queue")
+    assert q_resp.status_code == 200
+    q_body = q_resp.json()
+    assert "queue" in q_body
+
+    a_resp = client.get("/api/audit")
+    assert a_resp.status_code == 200
+    a_body = a_resp.json()
+    assert "audit_trail" in a_body
+
+
+def test_api_razorpay_status():
+    """Test GET /api/integrations/razorpay/status."""
+    resp = client.get("/api/integrations/razorpay/status")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "status" in data
+    assert "environment" in data
+

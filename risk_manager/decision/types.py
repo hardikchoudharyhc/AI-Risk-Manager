@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 
-ACTIONS = ("APPROVE", "MANUAL_REVIEW", "DEFENSIVE_ACTION")
+ACTIONS = ("ALLOW", "MONITOR", "MANUAL_REVIEW", "BLOCK", "APPROVE", "DEFENSIVE_ACTION")
 
 
 @dataclass
@@ -23,6 +23,7 @@ class DecisionResult:
     rule_versions: dict[str, str]
     policy_version: str
     timestamp: str
+    risk_level: str = "LOW"
 
     @staticmethod
     def now_iso() -> str:

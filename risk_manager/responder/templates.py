@@ -172,7 +172,14 @@ class TemplateRegistry:
     def resolve_action(self, decision: str, case_type: str | None = None) -> ResponseAction:
         decision_key = decision.upper() if decision else "MANUAL_REVIEW"
         if decision_key not in self.templates:
-            decision_key = "MANUAL_REVIEW"
+            if decision_key in ("ALLOW", "APPROVE"):
+                decision_key = "APPROVE" if "APPROVE" in self.templates else decision_key
+            elif decision_key in ("BLOCK", "DEFENSIVE_ACTION"):
+                decision_key = "DEFENSIVE_ACTION" if "DEFENSIVE_ACTION" in self.templates else decision_key
+            elif decision_key in ("MONITOR",):
+                decision_key = "MANUAL_REVIEW" if "MANUAL_REVIEW" in self.templates else decision_key
+            else:
+                decision_key = "MANUAL_REVIEW"
 
         decision_group = self.templates[decision_key]
         case_key = (case_type.lower() if case_type else "default")

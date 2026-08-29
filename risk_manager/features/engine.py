@@ -12,6 +12,9 @@ from risk_manager.features.risk_classes import (
 from risk_manager.features.base import safe_divide, days_between, velocity
 
 
+DEFAULT_BASELINE_AVG_AMOUNT = Decimal("500")
+
+
 class FeatureEngine:
     """Compute features from canonical data. Prevents temporal leakage."""
     
@@ -43,6 +46,14 @@ class FeatureEngine:
         self._customer_chargebacks = self._build_customer_chargebacks()
         self._device_customers = self._build_device_customers()
         self._address_customers = self._build_address_customers()
+
+    def register_transaction(self, transaction: Transaction) -> None:
+        """Register a new transaction in feature engine and update customer aggregates."""
+        self.transactions[transaction.transaction_id] = transaction
+        if transaction.customer_id not in self._customer_transactions:
+            self._customer_transactions[transaction.customer_id] = []
+        if transaction not in self._customer_transactions[transaction.customer_id]:
+            self._customer_transactions[transaction.customer_id].append(transaction)
     
     def _build_customer_orders(self) -> dict[str, list[Order]]:
         """Group orders by customer, exclude future orders."""
@@ -111,9 +122,9 @@ class FeatureEngine:
         if cust_orders_pre:
             avg_value = sum(o.amount for o in cust_orders_pre) / len(cust_orders_pre)
         else:
-            avg_value = Decimal("0")
+            avg_value = DEFAULT_BASELINE_AVG_AMOUNT
         
-        order_value = order.amount if order else Decimal("0")
+        order_value = order.amount if order else transaction.amount
         value_ratio = float(safe_divide(float(order_value), float(avg_value))) if avg_value else 0.0
         
         if cust_orders_pre:
@@ -154,7 +165,7 @@ class FeatureEngine:
         if cust_txns_pre:
             avg_amount = sum(t.amount for t in cust_txns_pre) / len(cust_txns_pre)
         else:
-            avg_amount = Decimal("0")
+            avg_amount = DEFAULT_BASELINE_AVG_AMOUNT
         
         amount_ratio = float(safe_divide(float(transaction.amount), float(avg_amount))) if avg_amount else 0.0
         
@@ -164,7 +175,7 @@ class FeatureEngine:
         
         # Failed transactions (assuming transaction_status != "COMPLETED" is failed)
         failed = sum(1 for t in cust_txns_pre if t.transaction_status not in ("COMPLETED", "SETTLED"))
-        failed_rate = safe_divide(failed, len(cust_txns_pre))
+        failed_rate = safe_divide(failed, len(cust_txns_pre)) if cust_txns_pre else (1.0 if transaction.transaction_status in ("failed", "FAILED") else 0.0)
         
         # Unusual payment method (rare method)
         method_freq = sum(1 for t in cust_txns_pre if t.payment_method == transaction.payment_method)
@@ -227,9 +238,9 @@ class FeatureEngine:
             avg_amt = sum(t.amount for t in hist_24h) / len(hist_24h)
             variance = sum((float(t.amount) - float(avg_amt)) ** 2 for t in hist_24h) / len(hist_24h)
             stddev = variance ** 0.5
-            current_stddev_z = safe_divide(float(transaction.amount) - float(avg_amt), stddev) if stddev else 0.0
+            current_stddev_z = (float(transaction.amount) - float(avg_amt)) / stddev if stddev > 0 else (float(transaction.amount - avg_amt) / max(1.0, float(avg_amt)))
         else:
-            current_stddev_z = 0.0
+            current_stddev_z = float(transaction.amount) / 500.0
         
         return FraudSpikeFeatures(
             transaction_id=transaction.transaction_id,

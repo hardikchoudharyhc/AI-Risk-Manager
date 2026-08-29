@@ -60,12 +60,12 @@ def test_decision_returns_expected_contract_fields():
 
     decision = decision_engine.decide("merchant_a", detector, verifier_result)
 
-    assert decision.decision in {"APPROVE", "MANUAL_REVIEW", "DEFENSIVE_ACTION"}
+    assert decision.decision in {"ALLOW", "MONITOR", "MANUAL_REVIEW", "BLOCK", "APPROVE", "DEFENSIVE_ACTION"}
     assert 0.0 <= decision.risk_score <= 1.0
     assert 0.0 <= decision.confidence <= 1.0
-    assert "APPROVE" in decision.expected_loss_by_action
+    assert "ALLOW" in decision.expected_loss_by_action or "APPROVE" in decision.expected_loss_by_action
     assert "MANUAL_REVIEW" in decision.expected_loss_by_action
-    assert "DEFENSIVE_ACTION" in decision.expected_loss_by_action
+    assert "BLOCK" in decision.expected_loss_by_action or "DEFENSIVE_ACTION" in decision.expected_loss_by_action
     assert len(decision.rationale) >= 3
 
 
@@ -90,11 +90,11 @@ def test_high_risk_with_high_confidence_can_choose_defensive_action():
     )
 
     decision = decision_engine.decide("merchant_b", detector, verifier_result)
-    assert decision.decision in {"DEFENSIVE_ACTION", "MANUAL_REVIEW"}
+    assert decision.decision in {"BLOCK", "DEFENSIVE_ACTION", "MANUAL_REVIEW"}
     assert decision.expected_loss_by_action[decision.decision] <= max(decision.expected_loss_by_action.values())
 
 
-def test_uncertainty_defaults_to_manual_review():
+def test_medium_risk_maps_to_monitor():
     txns, verifier_service, decision_engine = _build_engine_and_data()
     verifier_result = verifier_service.verify("transaction_fraud", txns[2], detector_confidence=0.35)
     verifier_result.risk_score = 0.50
@@ -114,7 +114,7 @@ def test_uncertainty_defaults_to_manual_review():
     )
 
     decision = decision_engine.decide("merchant_a", detector, verifier_result)
-    assert decision.decision == "MANUAL_REVIEW"
+    assert decision.decision in {"MONITOR", "MANUAL_REVIEW"}
 
 
 def test_expected_loss_math_for_approve_is_fn_weighted():
@@ -259,4 +259,43 @@ def test_decision_costs_case_type_lookup_helper():
     assert normal_costs.false_negative_cost == 260.0
     assert normal_costs.false_positive_cost == 30.0
     assert policy.costs.get_false_negative_cost(None) == 260.0
+
+
+def test_score_mapping_policy_and_edge_cases():
+    from risk_manager.decision.engine import map_risk_score_to_level_and_decision
+
+    # 1. Standard scores
+    assert map_risk_score_to_level_and_decision(0.10) == ("LOW", "ALLOW")
+    assert map_risk_score_to_level_and_decision(0.45) == ("MEDIUM", "MONITOR")
+    assert map_risk_score_to_level_and_decision(0.70) == ("HIGH", "MANUAL_REVIEW")
+    assert map_risk_score_to_level_and_decision(0.90) == ("CRITICAL", "BLOCK")
+
+    # 2. 100-point scale input support
+    assert map_risk_score_to_level_and_decision(10) == ("LOW", "ALLOW")
+    assert map_risk_score_to_level_and_decision(45) == ("MEDIUM", "MONITOR")
+    assert map_risk_score_to_level_and_decision(70) == ("HIGH", "MANUAL_REVIEW")
+    assert map_risk_score_to_level_and_decision(90) == ("CRITICAL", "BLOCK")
+
+    # 3. Exact boundaries edge cases
+    assert map_risk_score_to_level_and_decision(0.29) == ("LOW", "ALLOW")
+    assert map_risk_score_to_level_and_decision(29) == ("LOW", "ALLOW")
+
+    assert map_risk_score_to_level_and_decision(0.30) == ("MEDIUM", "MONITOR")
+    assert map_risk_score_to_level_and_decision(30) == ("MEDIUM", "MONITOR")
+
+    assert map_risk_score_to_level_and_decision(0.59) == ("MEDIUM", "MONITOR")
+    assert map_risk_score_to_level_and_decision(59) == ("MEDIUM", "MONITOR")
+
+    assert map_risk_score_to_level_and_decision(0.60) == ("HIGH", "MANUAL_REVIEW")
+    assert map_risk_score_to_level_and_decision(60) == ("HIGH", "MANUAL_REVIEW")
+
+    assert map_risk_score_to_level_and_decision(0.79) == ("HIGH", "MANUAL_REVIEW")
+    assert map_risk_score_to_level_and_decision(79) == ("HIGH", "MANUAL_REVIEW")
+
+    assert map_risk_score_to_level_and_decision(0.80) == ("CRITICAL", "BLOCK")
+    assert map_risk_score_to_level_and_decision(80) == ("CRITICAL", "BLOCK")
+
+    assert map_risk_score_to_level_and_decision(1.00) == ("CRITICAL", "BLOCK")
+    assert map_risk_score_to_level_and_decision(100) == ("CRITICAL", "BLOCK")
+
 

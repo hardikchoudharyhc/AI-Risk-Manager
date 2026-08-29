@@ -29,7 +29,7 @@ def test_demo_pipeline_executes_all_scenarios():
         assert len(entry["shap_top_features"]) >= 1
         assert "feature" in entry["shap_top_features"][0]
         assert "contribution" in entry["shap_top_features"][0]
-        assert entry["decision"] in {"APPROVE", "MANUAL_REVIEW", "DEFENSIVE_ACTION"}
+        assert entry["decision"] in {"ALLOW", "MONITOR", "MANUAL_REVIEW", "BLOCK", "APPROVE", "DEFENSIVE_ACTION"}
         assert entry["selected_expected_loss"] >= 0.0
         assert entry["response_action_code"] != ""
         assert entry["mock_execution_status"] == "SUCCESS"

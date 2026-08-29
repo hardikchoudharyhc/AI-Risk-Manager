@@ -79,8 +79,8 @@ def test_full_pipeline_raw_csv_to_audit(tmp_path):
         detector_result=detector_pred,
         verifier_result=verifier_result,
     )
-    assert decision_result.decision in {"APPROVE", "MANUAL_REVIEW", "DEFENSIVE_ACTION"}
-    assert "APPROVE" in decision_result.expected_loss_by_action
+    assert decision_result.decision in {"ALLOW", "MONITOR", "MANUAL_REVIEW", "BLOCK", "APPROVE", "DEFENSIVE_ACTION"}
+    assert "ALLOW" in decision_result.expected_loss_by_action or "APPROVE" in decision_result.expected_loss_by_action
 
     # 6. Auto-Responder & Action Adapter Execution
     responder = AutoResponder.from_config(template_file=ROOT / "config" / "response_templates.json")
@@ -126,5 +126,5 @@ def test_ui_evaluate_single_transaction_pipeline_routing():
     assert result["merchant_id"] == "merchant_a"
     assert result["case_type"] in {"normal", "return_abuse", "transaction_fraud", "fraud_spike", "abuse_ring"}
     assert 0.0 <= result["detector_confidence"] <= 1.0
-    assert result["decision"] in {"APPROVE", "MANUAL_REVIEW", "DEFENSIVE_ACTION"}
+    assert result["decision"] in {"ALLOW", "MONITOR", "MANUAL_REVIEW", "BLOCK", "APPROVE", "DEFENSIVE_ACTION"}
     assert result["audit_id"].startswith("aud_")

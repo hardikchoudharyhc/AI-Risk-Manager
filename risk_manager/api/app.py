@@ -8,7 +8,7 @@ import tempfile
 import uuid
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Request, status
+from fastapi import FastAPI, HTTPException, Request, status, Query
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -16,8 +16,9 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from data.synthetic.dataset_generator import create_synthetic_dataset
 from risk_manager.decision import DecisionEngine
+from risk_manager.decision.engine import map_risk_score_to_level_and_decision
 from risk_manager.detector import generate_labeled_dataset, train_detector, Predictor
-from risk_manager.demo import extract_detector_features
+from risk_manager.demo import extract_detector_features, run_demo_pipeline
 from risk_manager.features import FeatureEngine
 from risk_manager.models import Transaction
 from risk_manager.pipeline import ingest_raw_data
@@ -37,6 +38,8 @@ class ProcessRequest(BaseModel):
 
     data: Any = Field(..., description="Raw CSV string, JSON array, JSON object, or single record dictionary")
     merchant_id: str | None = Field(default=None, description="Optional merchant schema identifier override")
+    source_type: str = Field(default="csv", description="Source channel: csv, json, manual, razorpay, shopify")
+    source_id: str = Field(default="uploaded_file", description="Source identifier: file name, connection_id, etc.")
 
 
 class TransactionRef(BaseModel):
@@ -56,12 +59,16 @@ class RiskAssessment(BaseModel):
     probabilities: dict[str, float]
     verifier_status: str
     verifier_risk_score: float
+    risk_score: float = 0.0
+    risk_level: str = "LOW"
     evidence_reasons: list[str]
     shap_top_features: list[dict[str, Any]]
 
 
 class DecisionDetails(BaseModel):
     final_decision: str
+    decision: str = ""
+    risk_level: str = "LOW"
     policy: str
     expected_losses_by_action: dict[str, float]
     rationale: list[str]
@@ -83,11 +90,16 @@ class AuditDetails(BaseModel):
 
 class ProcessResultItem(BaseModel):
     case_id: str
+    source_type: str = "csv"
+    source_id: str = "uploaded_file"
+    ingestion_id: str = ""
+    received_at: str = ""
     transaction: TransactionRef
     risk_assessment: RiskAssessment
     decision: DecisionDetails
     response: ResponseDetails
     audit: AuditDetails
+
 
 
 class ProcessSummary(BaseModel):
@@ -139,7 +151,7 @@ class RazorpaySyncRequest(BaseModel):
     key_id: str | None = Field(default=None, description="Razorpay Key ID if connecting on sync")
     key_secret: str | None = Field(default=None, description="Razorpay Key Secret if connecting on sync")
     connection_id: str | None = Field(default=None, description="Existing active connection ID")
-    count: int = Field(default=10, ge=1, le=50, description="Max batch size to fetch")
+    count: int = Field(default=50, ge=1, le=100, description="Max batch size to fetch")
 
 
 class RazorpayOutboundRequest(BaseModel):
@@ -149,9 +161,18 @@ class RazorpayOutboundRequest(BaseModel):
 
 
 class SyncResponse(BaseModel):
+    source: str = "razorpay"
+    environment: str = "test"
     connection_id: str
     merchant_id: str
     provider: str
+    fetched: int = 0
+    mapped: int = 0
+    inserted: int = 0
+    duplicates: int = 0
+    rejected: int = 0
+    analyzed: int = 0
+    failed: int = 0
     synced_records: int
     pipeline_results: list[ProcessResultItem]
 
@@ -163,8 +184,6 @@ class WebhookResponse(BaseModel):
     processed_records: int
     pipeline_results: list[ProcessResultItem]
 
-
-# --- LEGACY CONTRACT MODELS FOR BACKWARD COMPATIBILITY ---
 
 class RiskAnalyzeRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -206,7 +225,7 @@ class HealthResponse(BaseModel):
     timestamp: str
 
 
-# --- PIPELINE CONTEXT ---
+# --- PIPELINE CONTEXT & IN-MEMORY DATA STORE ---
 
 class PipelineContext:
     def __init__(self):
@@ -218,6 +237,8 @@ class PipelineContext:
         self.decision_engine = None
         self.responder = None
         self.action_adapter = None
+        self.evaluated_store: dict[str, ProcessResultItem] = {}
+        self.audit_store: list[dict[str, Any]] = []
 
     def initialize(self):
         if self.initialized:
@@ -253,6 +274,28 @@ class PipelineContext:
         self.action_adapter = MockActionAdapter(mode="defense_only_simulation")
         self.initialized = True
 
+    def ensure_demo_store_populated(self):
+        if self.evaluated_store:
+            return
+        try:
+            demo_txns = [
+                Transaction(transaction_id="TXN-NORM-100", order_id="ORD-NORM-100", customer_id="C-NORM-100", amount=Decimal("150.00"), currency="INR", payment_method="UPI", transaction_status="COMPLETED", timestamp=datetime.now(timezone.utc)),
+                Transaction(transaction_id="TXN-RA-100", order_id="ORD-RA-100", customer_id="C-RA-100", amount=Decimal("8990.00"), currency="INR", payment_method="CARD", transaction_status="COMPLETED", timestamp=datetime.now(timezone.utc)),
+                Transaction(transaction_id="TXN-TF-100", order_id="ORD-TF-100", customer_id="C-TF-100", amount=Decimal("49999.00"), currency="INR", payment_method="CARD", transaction_status="COMPLETED", timestamp=datetime.now(timezone.utc)),
+                Transaction(transaction_id="TXN-FS-100", order_id="ORD-FS-100", customer_id="C-FS-100", amount=Decimal("35000.00"), currency="INR", payment_method="CARD", transaction_status="COMPLETED", timestamp=datetime.now(timezone.utc)),
+                Transaction(transaction_id="TXN-RING-100", order_id="ORD-RING-100", customer_id="C-RING-100", amount=Decimal("12000.00"), currency="INR", payment_method="NETBANKING", transaction_status="COMPLETED", timestamp=datetime.now(timezone.utc)),
+            ]
+            for txn in demo_txns:
+                item = _evaluate_transaction(
+                    txn=txn,
+                    merchant_id="merchant_a",
+                    source_type="mock",
+                    source_id="demo_dataset",
+                )
+                self.evaluated_store[txn.transaction_id] = item
+        except Exception:
+            pass
+
 
 pipeline_ctx = PipelineContext()
 
@@ -270,7 +313,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS Configuration for local frontend development
+# CORS Configuration for local React frontend development
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -278,6 +321,7 @@ app.add_middleware(
         "http://127.0.0.1:3000",
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "http://localhost:8000",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -333,15 +377,27 @@ async def generic_exception_handler(request: Request, exc: Exception):
 
 # --- HELPER FUNCTION FOR PIPELINE EVALUATION ---
 
-def _evaluate_transaction(txn: Transaction, merchant_id: str) -> ProcessResultItem:
+def _evaluate_transaction(
+    txn: Transaction,
+    merchant_id: str,
+    source_type: str = "csv",
+    source_id: str = "uploaded_file",
+    ingestion_id: str = "",
+    received_at: str = "",
+) -> ProcessResultItem:
     pipeline_ctx.initialize()
-    pipeline_ctx.feature_engine.transactions[txn.transaction_id] = txn
+    pipeline_ctx.feature_engine.register_transaction(txn)
 
     features_dict = extract_detector_features(pipeline_ctx.feature_engine, txn)
     detector_pred = pipeline_ctx.detector_predictor.predict(features_dict)
     detected_case = detector_pred.case_type
 
+    target_verifier_case = detected_case
     if detected_case == "normal":
+        if float(txn.amount) >= 2500.0 or str(txn.transaction_status).upper() in ("FAILED", "DECLINED"):
+            target_verifier_case = "transaction_fraud"
+
+    if target_verifier_case == "normal":
         verifier_result = VerificationResult(
             case_type="normal",
             verifier_name="LegitimateControlBaseline",
@@ -368,8 +424,8 @@ def _evaluate_transaction(txn: Transaction, merchant_id: str) -> ProcessResultIt
         )
     else:
         verifier_case = (
-            detected_case
-            if detected_case in pipeline_ctx.verifier_service._verifiers
+            target_verifier_case
+            if target_verifier_case in pipeline_ctx.verifier_service._verifiers
             else "transaction_fraud"
         )
         verifier_result = pipeline_ctx.verifier_service.verify(
@@ -416,8 +472,14 @@ def _evaluate_transaction(txn: Transaction, merchant_id: str) -> ProcessResultIt
         else [f"Decision selected: {decision_result.decision}"]
     )
 
-    return ProcessResultItem(
+    audit_id = latest_audit.audit_id if latest_audit else f"aud_{uuid.uuid4().hex[:8]}"
+
+    item = ProcessResultItem(
         case_id=f"case_{txn.transaction_id}",
+        source_type=source_type,
+        source_id=source_id,
+        ingestion_id=ingestion_id or f"ing_{uuid.uuid4().hex[:8]}",
+        received_at=received_at or datetime.now(timezone.utc).isoformat(),
         transaction=TransactionRef(
             transaction_id=txn.transaction_id,
             order_id=txn.order_id,
@@ -434,11 +496,15 @@ def _evaluate_transaction(txn: Transaction, merchant_id: str) -> ProcessResultIt
             probabilities=probs,
             verifier_status=verifier_result.verification_status,
             verifier_risk_score=verifier_result.risk_score,
+            risk_score=decision_result.risk_score,
+            risk_level=getattr(decision_result, "risk_level", "LOW"),
             evidence_reasons=verifier_result.reasons,
             shap_top_features=shap_top_features,
         ),
         decision=DecisionDetails(
             final_decision=decision_result.decision,
+            decision=decision_result.decision,
+            risk_level=getattr(decision_result, "risk_level", "LOW"),
             policy=decision_result.policy_name,
             expected_losses_by_action=decision_result.expected_loss_by_action,
             rationale=rationale_list,
@@ -450,17 +516,35 @@ def _evaluate_transaction(txn: Transaction, merchant_id: str) -> ProcessResultIt
             execution_status=execution_receipt.status,
         ),
         audit=AuditDetails(
-            audit_id=latest_audit.audit_id if latest_audit else f"aud_{uuid.uuid4().hex[:8]}",
+            audit_id=audit_id,
             model_version=detector_pred.model_version,
             policy_version=decision_result.policy_name,
             timestamp=datetime.now(timezone.utc).isoformat(),
         ),
     )
 
+    # Save into in-memory stores for REST transaction & audit queries
+    pipeline_ctx.evaluated_store[txn.transaction_id] = item
+    pipeline_ctx.audit_store.append({
+        "audit_id": audit_id,
+        "transaction_id": txn.transaction_id,
+        "merchant_id": merchant_id,
+        "decision": decision_result.decision,
+        "action_code": response_result.action.action_code,
+        "execution_status": execution_receipt.status,
+        "model_version": detector_pred.model_version,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    })
 
-# --- ENDPOINTS ---
+    return item
+
+
+# ==============================================================================
+# API ENDPOINTS & ROUTES (CORE BACKEND & REST CONTRACTS)
+# ==============================================================================
 
 @app.get("/health", response_model=HealthResponse)
+@app.get("/api/health", response_model=HealthResponse)
 def health_check():
     return HealthResponse(
         status="healthy",
@@ -470,6 +554,7 @@ def health_check():
 
 
 @app.post("/process", response_model=ProcessResponse)
+@app.post("/api/ingestion", response_model=ProcessResponse)
 def process_data(req: ProcessRequest):
     pipeline_ctx.initialize()
 
@@ -480,7 +565,6 @@ def process_data(req: ProcessRequest):
             detail="Input data cannot be empty.",
         )
 
-    # Perform security check if string/bytes data is supplied
     if isinstance(raw_data, (str, bytes)):
         input_bytes = raw_data if isinstance(raw_data, bytes) else raw_data.encode("utf-8")
         is_valid_upload, upload_err = validate_file_upload(input_bytes, "api_payload.json")
@@ -491,45 +575,128 @@ def process_data(req: ProcessRequest):
             )
 
     try:
-        valid_txns, stats, merchant_id_detected, format_detected = ingest_raw_data(raw_data)
+        from risk_manager.pipeline import ingest_records
+        valid_txns, ingest_res = ingest_records(
+            raw_input=raw_data,
+            source_type=req.source_type,
+            source_id=req.source_id,
+            merchant_id=req.merchant_id,
+        )
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Malformed input or parsing failure: {str(exc)}",
         ) from exc
 
-    effective_merchant_id = req.merchant_id or merchant_id_detected
+    effective_merchant_id = req.merchant_id or ingest_res.merchant_id
 
     if not valid_txns:
-        err_msg = stats.errors[0] if stats.errors else "No valid transaction records found in input data."
+        err_msg = ingest_res.errors[0] if ingest_res.errors else "No valid transaction records found in input data."
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=err_msg,
         )
 
-    results = [_evaluate_transaction(txn, effective_merchant_id) for txn in valid_txns]
+    results = [
+        _evaluate_transaction(
+            txn=txn,
+            merchant_id=effective_merchant_id,
+            source_type=ingest_res.source_type,
+            source_id=ingest_res.source_id,
+            ingestion_id=ingest_res.ingestion_id,
+            received_at=ingest_res.received_at,
+        )
+        for txn in valid_txns
+    ]
 
     req_id = f"req_{uuid.uuid4().hex[:8]}"
 
     return ProcessResponse(
         request_id=req_id,
         summary=ProcessSummary(
-            total_records=stats.total_records,
-            valid_records=stats.valid_records,
-            rejected_records=stats.invalid_records,
-            duplicate_records=stats.duplicate_records,
+            total_records=ingest_res.total_records,
+            valid_records=ingest_res.valid_records,
+            rejected_records=ingest_res.invalid_records,
+            duplicate_records=ingest_res.duplicate_records,
             merchant_id=effective_merchant_id,
-            format_detected=format_detected,
+            format_detected=ingest_res.format_detected,
         ),
         results=results,
         quarantine=QuarantineSummary(
-            rejected_count=stats.invalid_records,
-            errors=[sanitize_display_text(e) for e in stats.errors],
+            rejected_count=ingest_res.invalid_records,
+            errors=[sanitize_display_text(e) for e in ingest_res.errors],
         ),
     )
 
 
+@app.get("/api/transactions")
+def get_transactions(
+    search: str | None = None,
+    risk_level: str | None = None,
+    decision: str | None = None,
+    source: str | None = None,
+    source_type: str | None = None,
+    sort_by: str = "timestamp",
+    order: str = "desc",
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=50, ge=1, le=200),
+):
+    pipeline_ctx.initialize()
+    pipeline_ctx.ensure_demo_store_populated()
+    items = list(pipeline_ctx.evaluated_store.values())
+
+    src_filter = (source_type or source or "").strip().lower()
+    if src_filter and src_filter != "all":
+        items = [
+            it for it in items
+            if getattr(it, "source_type", "").lower() == src_filter or getattr(it, "source_id", "").lower() == src_filter
+        ]
+
+    if search and search.strip():
+        q = search.strip().lower()
+        items = [
+            it for it in items
+            if q in it.transaction.transaction_id.lower() or q in it.transaction.customer_id.lower()
+        ]
+
+    if risk_f := risk_level:
+        if risk_f != "ALL":
+            items = [
+                it for it in items
+                if map_risk_score_to_level_and_decision(it.risk_assessment.risk_score)[0] == risk_f
+            ]
+
+    if dec_f := decision:
+        if dec_f != "ALL":
+            items = [
+                it for it in items
+                if it.decision.final_decision == dec_f or getattr(it.decision, "decision", "") == dec_f
+            ]
+
+    start_idx = (page - 1) * limit
+    paginated = items[start_idx : start_idx + limit]
+
+    return {
+        "total": len(items),
+        "page": page,
+        "limit": limit,
+        "transactions": [it.model_dump() for it in paginated],
+    }
+
+
+@app.get("/api/transactions/{transaction_id}")
+def get_transaction_detail(transaction_id: str):
+    pipeline_ctx.initialize()
+    if transaction_id not in pipeline_ctx.evaluated_store:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Transaction '{transaction_id}' not found.",
+        )
+    return pipeline_ctx.evaluated_store[transaction_id].model_dump()
+
+
 @app.post("/risk/analyze", response_model=RiskAnalyzeResponse)
+@app.post("/api/risk/analyze", response_model=RiskAnalyzeResponse)
 def analyze_risk(req: RiskAnalyzeRequest):
     pipeline_ctx.initialize()
 
@@ -607,7 +774,6 @@ def analyze_risk(req: RiskAnalyzeRequest):
     )
 
     execution_receipt = pipeline_ctx.action_adapter.execute(response_result)
-
     audit_records = pipeline_ctx.responder.audit_logger.get_by_event_id(txn.transaction_id)
     latest_audit = audit_records[-1] if audit_records else None
 
@@ -621,7 +787,7 @@ def analyze_risk(req: RiskAnalyzeRequest):
     ]
 
     return RiskAnalyzeResponse(
-        transaction_id=txn.transaction_id,
+        transaction_id=req.transaction_id,
         merchant_id=req.merchant_id,
         case_type=detected_case,
         detector_confidence=detector_pred.confidence,
@@ -645,14 +811,30 @@ def analyze_risk(req: RiskAnalyzeRequest):
     )
 
 
-# --- MERCHANT INTEGRATION & WEBHOOK ENDPOINTS ---
+@app.get("/api/risk/queue")
+def get_risk_queue():
+    pipeline_ctx.initialize()
+    items = list(pipeline_ctx.evaluated_store.values())
+    items.sort(key=lambda x: x.risk_assessment.risk_score, reverse=True)
+    return {"queue": [it.model_dump() for it in items]}
+
+
+@app.get("/api/audit")
+def get_audit_trail():
+    pipeline_ctx.initialize()
+    return {"audit_trail": pipeline_ctx.audit_store}
+
+
+# --- RAZORPAY INTEGRATION ENDPOINTS ---
 
 @app.get("/integrations")
+@app.get("/api/integrations")
 def list_integrations():
     return registry.list_providers()
 
 
 @app.post("/integrations/razorpay/connect")
+@app.post("/api/integrations/razorpay/connect")
 def connect_razorpay(req: RazorpayConnectRequest):
     provider_inst = registry.get_provider("razorpay")
     if not provider_inst:
@@ -676,7 +858,13 @@ def connect_razorpay(req: RazorpayConnectRequest):
         ) from exc
 
 
+@app.post("/api/integrations/razorpay/test")
+def test_razorpay_connection(req: RazorpayConnectRequest):
+    return connect_razorpay(req)
+
+
 @app.post("/integrations/razorpay/sync", response_model=SyncResponse)
+@app.post("/api/integrations/razorpay/sync", response_model=SyncResponse)
 def sync_razorpay(req: RazorpaySyncRequest):
     pipeline_ctx.initialize()
     provider_inst = registry.get_provider("razorpay")
@@ -716,25 +904,78 @@ def sync_razorpay(req: RazorpaySyncRequest):
         )
 
     try:
-        valid_txns, stats = provider_inst.sync_transactions(conn)
+        valid_txns, ingest_res = provider_inst.sync_transactions(conn, limit=req.count)
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Razorpay sync failed: {str(exc)}",
         ) from exc
 
-    results = [_evaluate_transaction(txn, conn.merchant_id) for txn in valid_txns]
+    existing_ids = set(pipeline_ctx.evaluated_store.keys())
+    duplicate_count = sum(1 for t in valid_txns if t.transaction_id in existing_ids)
+    inserted_count = len(valid_txns) - duplicate_count
 
+    results = [
+        _evaluate_transaction(
+            txn=txn,
+            merchant_id=conn.merchant_id,
+            source_type="razorpay",
+            source_id=conn.connection_id,
+            ingestion_id=ingest_res.ingestion_id,
+            received_at=ingest_res.received_at,
+        )
+        for txn in valid_txns
+    ]
+
+    env = conn.metadata.get("environment", "RAZORPAY TEST MODE")
     return SyncResponse(
+        source="razorpay",
+        environment=env,
         connection_id=conn.connection_id,
         merchant_id=conn.merchant_id,
         provider="razorpay",
+        fetched=ingest_res.total_records,
+        mapped=ingest_res.valid_records,
+        inserted=inserted_count,
+        duplicates=ingest_res.duplicate_records + duplicate_count,
+        rejected=ingest_res.invalid_records,
+        analyzed=len(results),
+        failed=len(ingest_res.errors),
         synced_records=len(valid_txns),
         pipeline_results=results,
     )
 
 
+@app.get("/api/integrations/razorpay/status")
+def get_razorpay_status():
+    conns = registry.list_connections()
+    rzp_conns = [c for c in conns if c.provider == "razorpay"]
+    rzp_analyzed = sum(1 for it in pipeline_ctx.evaluated_store.values() if getattr(it, "source_type", "").lower() == "razorpay")
+    if not rzp_conns:
+        return {
+            "status": "DISCONNECTED",
+            "environment": "DISCONNECTED",
+            "total_fetched": 0,
+            "total_analyzed": rzp_analyzed,
+            "outbound_status": "Idle",
+        }
+    c = rzp_conns[-1]
+    is_mock = c.metadata.get("is_mock", False)
+    default_fetched = 20 if is_mock else 0
+    total_fetched = c.metadata.get("available_records", default_fetched)
+    return {
+        "status": "CONNECTED",
+        "connection_id": c.connection_id,
+        "environment": c.metadata.get("environment", "MOCK / DEMO"),
+        "total_fetched": total_fetched,
+        "total_analyzed": rzp_analyzed,
+        "outbound_status": "Active",
+    }
+
+
+
 @app.post("/integrations/razorpay/outbound")
+@app.post("/api/integrations/razorpay/send-results")
 def send_razorpay_outbound(req: RazorpayOutboundRequest):
     provider_inst = registry.get_provider("razorpay")
     if not provider_inst:
@@ -883,4 +1124,3 @@ async def receive_webhook(provider: str, request: Request):
         processed_records=len(valid_txns),
         pipeline_results=results,
     )
-

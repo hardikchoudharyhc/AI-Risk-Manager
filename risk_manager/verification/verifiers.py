@@ -119,6 +119,7 @@ class TransactionFraudVerifier(BaseVerifier):
 
     def _evaluate_rules(self, feature_map: dict[str, Any], history: dict[str, Any]) -> list[RuleEvaluation]:
         ratio = float(feature_map.get("amount_vs_avg_ratio", 0.0))
+        amt = float(feature_map.get("amount", 0.0))
         velocity_1h = float(feature_map.get("transaction_velocity_1h", 0.0))
         failed_rate = float(feature_map.get("customer_failed_transaction_rate", 0.0))
         unusual_pm = 1.0 if bool(feature_map.get("unusual_payment_method", False)) else 0.0
@@ -127,11 +128,11 @@ class TransactionFraudVerifier(BaseVerifier):
             RuleEvaluation(
                 rule_id="TF-R1",
                 description="Amount anomaly",
-                triggered=ratio >= 3.0,
+                triggered=ratio >= 3.0 or amt >= 10000.0,
                 weight=0.30,
-                observed_value=ratio,
+                observed_value=max(ratio, amt / 1000.0),
                 threshold=3.0,
-                reason="Transaction amount is significantly above customer norm.",
+                reason="Transaction amount is significantly above standard norm.",
             ),
             RuleEvaluation(
                 rule_id="TF-R2",
@@ -159,6 +160,15 @@ class TransactionFraudVerifier(BaseVerifier):
                 observed_value=unusual_pm,
                 threshold=1.0,
                 reason="Payment method is unusual for this customer.",
+            ),
+            RuleEvaluation(
+                rule_id="TF-R5",
+                description="Extreme high transaction amount",
+                triggered=amt >= 30000.0 or ratio >= 50.0,
+                weight=0.35,
+                observed_value=amt,
+                threshold=30000.0,
+                reason="Transaction amount is exceptionally large for standard merchant profile.",
             ),
         ]
 

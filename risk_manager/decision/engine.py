@@ -12,6 +12,30 @@ def _clamp(value: float, low: float = 0.0, high: float = 1.0) -> float:
     return max(low, min(high, value))
 
 
+def map_risk_score_to_level_and_decision(score: float) -> tuple[str, str]:
+    """
+    Maps a risk score (0.0 to 1.0 or 0 to 100) to (risk_level, decision).
+
+    Score Scale:
+    0–29   (0.00 – 0.29): Risk Level = LOW,      Decision = ALLOW
+    30–59  (0.30 – 0.59): Risk Level = MEDIUM,   Decision = MONITOR
+    60–79  (0.60 – 0.79): Risk Level = HIGH,     Decision = MANUAL_REVIEW
+    80–100 (0.80 – 1.00): Risk Level = CRITICAL, Decision = BLOCK
+    """
+    val = float(score)
+    val_100 = val if val > 1.0 else val * 100.0
+    s = round(val_100, 4)
+
+    if s < 30.0:
+        return "LOW", "ALLOW"
+    elif s < 60.0:
+        return "MEDIUM", "MONITOR"
+    elif s < 80.0:
+        return "HIGH", "MANUAL_REVIEW"
+    else:
+        return "CRITICAL", "BLOCK"
+
+
 @dataclass
 class DecisionEngine:
     """Cost-aware decision engine driven by detector + verifier outputs."""
@@ -78,6 +102,8 @@ class DecisionEngine:
 
         combined_confidence = _clamp((detector_conf + verifier_conf) / 2.0 - uncertainty_penalty)
 
+        risk_level, decision = map_risk_score_to_level_and_decision(combined_risk)
+
         case_type = detector_case if detector_case != "unknown" else verifier_case
         expected_loss = self._expected_loss_by_action(
             risk_probability=combined_risk,
@@ -85,15 +111,7 @@ class DecisionEngine:
             case_type=case_type,
         )
 
-        candidate_actions = self._candidate_actions(
-            risk=combined_risk,
-            confidence=combined_confidence,
-            verifier_status=verifier_status,
-            edge_flags=edge_flags,
-            policy=policy,
-        )
-
-        decision = min(candidate_actions, key=lambda action: expected_loss[action])
+        candidate_actions = [decision]
 
         rationale = self._build_rationale(
             decision=decision,
@@ -111,9 +129,10 @@ class DecisionEngine:
             policy_name=policy.name,
             decision=decision,
             risk_score=combined_risk,
+            risk_level=risk_level,
             confidence=combined_confidence,
             expected_loss_by_action=expected_loss,
-            selected_expected_loss=expected_loss[decision],
+            selected_expected_loss=expected_loss.get(decision, expected_loss.get("MANUAL_REVIEW", 0.0)),
             rationale=rationale,
             detector_evidence={
                 "case_type": detector_case,
@@ -171,10 +190,10 @@ class DecisionEngine:
         mr_fn_rate = effective_costs.manual_review_false_negative_rate
         mr_fp_rate = effective_costs.manual_review_false_positive_rate
 
-        # APPROVE: if risky case is approved, loss is FN cost.
-        approve_loss = risk_probability * fn_cost
+        # APPROVE / ALLOW: if risky case is approved, loss is FN cost.
+        allow_loss = risk_probability * fn_cost
 
-        # DEFENSIVE_ACTION: blocking benign traffic causes FP cost.
+        # BLOCK / DEFENSIVE_ACTION: blocking benign traffic causes FP cost.
         defensive_loss = (1.0 - risk_probability) * fp_cost
 
         # MANUAL_REVIEW: review cost plus residual FP/FN after review.
@@ -184,9 +203,18 @@ class DecisionEngine:
             + (1.0 - risk_probability) * fp_cost * mr_fp_rate
         )
 
+        monitor_loss = (
+            (mr_cost * 0.5)
+            + risk_probability * fn_cost * (mr_fn_rate * 1.2)
+            + (1.0 - risk_probability) * fp_cost * (mr_fp_rate * 0.5)
+        )
+
         return {
-            "APPROVE": round(approve_loss, 6),
+            "ALLOW": round(allow_loss, 6),
+            "MONITOR": round(monitor_loss, 6),
             "MANUAL_REVIEW": round(review_loss, 6),
+            "BLOCK": round(defensive_loss, 6),
+            "APPROVE": round(allow_loss, 6),
             "DEFENSIVE_ACTION": round(defensive_loss, 6),
         }
 

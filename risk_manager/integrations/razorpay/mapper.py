@@ -16,10 +16,10 @@ def map_razorpay_payment_to_canonical(data: dict[str, Any]) -> Transaction:
     - id: str (e.g. 'pay_K123456789')
     - order_id: str | None (e.g. 'order_K123456789')
     - customer_id: str | None (e.g. 'cust_K123456789')
-    - amount: int/float (amount in paise/sub-units, e.g. 25000 = 250.00 INR)
+    - amount: int/float/str (amount in paise/sub-units, e.g. 25000 = 250.00 INR)
     - currency: str (e.g. 'INR')
-    - method: str (e.g. 'upi', 'card', 'netbanking', 'wallet')
-    - status: str (e.g. 'captured', 'authorized', 'failed', 'refunded')
+    - method: str (e.g. 'upi', 'card', 'netbanking', 'wallet', 'emi')
+    - status: str (e.g. 'captured', 'authorized', 'failed', 'refunded', 'created')
     - created_at: int/float or str (epoch seconds or ISO timestamp)
     - email: str | None
     - contact: str | None
@@ -27,40 +27,41 @@ def map_razorpay_payment_to_canonical(data: dict[str, Any]) -> Transaction:
     if not isinstance(data, dict):
         raise ValueError("Razorpay payment record must be a dictionary.")
 
-    # 1. Transaction ID
-    txn_id = str(data.get("id") or data.get("transaction_id") or "").strip()
+    # 1. Transaction ID (Must preserve external Razorpay payment ID, e.g., pay_ABC123)
+    raw_id = data.get("id") or data.get("payment_id") or data.get("transaction_id") or ""
+    txn_id = str(raw_id).strip()
     if not txn_id:
         raise ValueError("Missing required Razorpay payment ID.")
 
-    # 2. Order ID
+    # 2. Order ID (Fallback to txn_id if order_id is missing or null)
     order_id = str(data.get("order_id") or "").strip()
-    if not order_id:
+    if not order_id or order_id == "None":
         order_id = txn_id
 
-    # 3. Customer ID derivation
+    # 3. Customer ID derivation (Fallback chain)
     customer_id = str(data.get("customer_id") or "").strip()
-    if not customer_id:
+    if not customer_id or customer_id == "None":
         email = str(data.get("email") or "").strip()
         contact = str(data.get("contact") or "").strip()
-        if email and "@" in email:
+        if email and "@" in email and email != "None":
             safe_email_user = email.split("@")[0].replace(".", "_")
             customer_id = f"C-RZP-{safe_email_user}"
-        elif contact:
+        elif contact and contact != "None":
             safe_contact = contact.replace("+", "").replace(" ", "").replace("-", "")
             customer_id = f"C-RZP-{safe_contact}"
         else:
-            customer_id = f"C-RZP-{txn_id.replace('pay_', '')}"
+            clean_pay_id = txn_id.replace("pay_", "") if txn_id.startswith("pay_") else txn_id
+            customer_id = f"C-RZP-{clean_pay_id}"
 
-    # 4. Amount conversion (sub-units/paise -> major currency units)
+    # 4. Amount conversion (100 paise = 1 INR unit)
     raw_amount = data.get("amount")
     if raw_amount is None:
         raise ValueError("Missing required payment amount.")
 
     try:
         amount_num = Decimal(str(raw_amount))
-        # If amount is an integer >= 100 or clearly in paise/sub-units, divide by 100
-        # Exception: if caller already converted to float major units (e.g. 250.00)
-        if isinstance(raw_amount, int) or (isinstance(raw_amount, str) and raw_amount.isdigit()):
+        # If integer or string digit in sub-units (e.g., 100 paise = ₹1, 10000 = ₹100, 24500 = ₹245)
+        if isinstance(raw_amount, int) or (isinstance(raw_amount, str) and raw_amount.strip().isdigit()):
             amount_decimal = amount_num / Decimal("100")
         else:
             amount_decimal = amount_num
@@ -71,12 +72,11 @@ def map_razorpay_payment_to_canonical(data: dict[str, Any]) -> Transaction:
         raise ValueError(f"Transaction amount must be strictly greater than zero. Received: {amount_decimal}")
 
     # 5. Currency
-    currency = str(data.get("currency") or "INR").strip().upper()
-    if len(currency) != 3:
-        raise ValueError(f"Currency code must be 3 letters (e.g. INR, USD). Received: '{currency}'")
+    raw_curr = str(data.get("currency") or "INR").strip().upper()
+    currency = raw_curr if (len(raw_curr) == 3 and raw_curr.isalpha()) else "INR"
 
     # 6. Payment Method Mapping
-    raw_method = str(data.get("method") or data.get("payment_method") or "CARD").strip().lower()
+    raw_method = str(data.get("method") or data.get("payment_method") or "card").strip().lower()
     method_map = {
         "card": "CARD",
         "credit card": "CARD",
@@ -85,19 +85,21 @@ def map_razorpay_payment_to_canonical(data: dict[str, Any]) -> Transaction:
         "netbanking": "NETBANKING",
         "wallet": "WALLET",
         "emi": "CARD",
+        "paylater": "PAYLATER",
     }
-    payment_method = method_map.get(raw_method, raw_method.upper())
+    payment_method = method_map.get(raw_method, raw_method.upper() if raw_method else "CARD")
 
     # 7. Status Mapping
     raw_status = str(data.get("status") or data.get("transaction_status") or "captured").strip().lower()
     status_map = {
-        "captured": "COMPLETED",
+        "created": "PENDING",
         "authorized": "PENDING",
-        "failed": "FAILED",
-        "refunded": "REFUNDED",
+        "captured": "COMPLETED",
         "settled": "COMPLETED",
+        "refunded": "REFUNDED",
+        "failed": "FAILED",
     }
-    txn_status = status_map.get(raw_status, raw_status.upper())
+    txn_status = status_map.get(raw_status, raw_status.upper() if raw_status else "COMPLETED")
 
     # 8. Timestamp
     raw_time = data.get("created_at") or data.get("timestamp")

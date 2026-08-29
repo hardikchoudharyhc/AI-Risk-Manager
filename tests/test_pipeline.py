@@ -140,3 +140,29 @@ def test_unified_ingest_malformed_inputs():
     valid_txns, stats, merchant_id, fmt = ingest_raw_data("   ")
     assert stats.valid_records == 0
     assert "empty" in stats.errors[0]
+
+
+def test_ingest_records_with_metadata_and_source_tracking():
+    from risk_manager.pipeline import ingest_records
+
+    # CSV Test
+    csv_raw = "cust_id,order_id,order_total,pay_type,order_dt,currency,transaction_status\nA-1,O-1,100.0,upi,2026-08-23T08:00:00Z,usd,completed\n"
+    txns_csv, res_csv = ingest_records(csv_raw, source_type="csv", source_id="test_file.csv", merchant_id="merchant_a")
+    assert len(txns_csv) == 1
+    assert res_csv.source_type == "csv"
+    assert res_csv.source_id == "test_file.csv"
+    assert res_csv.merchant_id == "merchant_a"
+    assert res_csv.valid_records == 1
+
+    # Razorpay Adapter payload test
+    rzp_raw = [{"id": "pay_mock_999", "amount": 5000, "currency": "INR", "status": "captured", "method": "card", "created_at": 1755950400}]
+    from risk_manager.integrations.razorpay.mapper import map_razorpay_payment_to_canonical
+    mapped_rzp = map_razorpay_payment_to_canonical(rzp_raw[0]).model_dump()
+    mapped_rzp["amount"] = str(mapped_rzp["amount"])
+    mapped_rzp["timestamp"] = mapped_rzp["timestamp"].isoformat()
+
+    txns_rzp, res_rzp = ingest_records([mapped_rzp], source_type="razorpay", source_id="conn_rzp_123")
+    assert len(txns_rzp) == 1
+    assert res_rzp.source_type == "razorpay"
+    assert res_rzp.source_id == "conn_rzp_123"
+    assert txns_rzp[0].amount == Decimal("50.00")
