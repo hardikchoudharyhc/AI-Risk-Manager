@@ -4,7 +4,7 @@ import { SourceBadge } from '../components/SourceBadge';
 import { LoadingState } from '../components/LoadingState';
 import { ErrorState } from '../components/ErrorState';
 import { fetchTransactionDetail } from '../services/api';
-import { ProcessResultItem, getEffectiveRiskScore } from '../types';
+import { ProcessResultItem, getEffectiveRiskScore, formatRiskScore } from '../types';
 
 interface TransactionDetailProps {
   transactionId: string;
@@ -42,7 +42,7 @@ export const TransactionDetail: React.FC<TransactionDetailProps> = ({
   const dec = detail.decision;
 
   const score = getEffectiveRiskScore(ra);
-  const score100 = (score * 100).toFixed(0);
+  const scoreFormatted = formatRiskScore(score);
 
   // Derive customer-facing risk signals from SHAP features & evidence reasons
   const customerRiskSignals = ra.evidence_reasons && ra.evidence_reasons.length > 0
@@ -110,7 +110,7 @@ export const TransactionDetail: React.FC<TransactionDetailProps> = ({
               Synthesized Risk Score
             </div>
             <div style={{ fontSize: '2.5rem', fontWeight: 700, color: '#0F172A', marginTop: '0.25rem' }}>
-              {score100} <span style={{ fontSize: '1rem', color: '#64748B', fontWeight: 500 }}>/ 100</span>
+              {scoreFormatted} <span style={{ fontSize: '1rem', color: '#64748B', fontWeight: 500 }}>/ 100</span>
             </div>
             <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem' }}>
               <RiskBadge score={score} />

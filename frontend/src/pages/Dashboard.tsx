@@ -6,7 +6,7 @@ import { SourceBadge } from '../components/SourceBadge';
 import { LoadingState } from '../components/LoadingState';
 import { ErrorState } from '../components/ErrorState';
 import { fetchTransactions } from '../services/api';
-import { ProcessResultItem, getEffectiveRiskScore } from '../types';
+import { ProcessResultItem, getEffectiveRiskScore, formatRiskScore } from '../types';
 
 interface DashboardProps {
   onSelectTransaction: (id: string) => void;
@@ -32,24 +32,24 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectTransaction }) => 
 
   const totalCount = items.length;
   const highRiskCount = items.filter(
-    (i) => getEffectiveRiskScore(i.risk_assessment) >= 0.60
+    (i) => getEffectiveRiskScore(i.risk_assessment) >= 60
   ).length;
   const mediumRiskCount = items.filter(
     (i) => {
       const s = getEffectiveRiskScore(i.risk_assessment);
-      return s >= 0.30 && s < 0.60;
+      return s >= 30 && s < 60;
     }
   ).length;
   const criticalRiskCount = items.filter(
-    (i) => getEffectiveRiskScore(i.risk_assessment) >= 0.80
+    (i) => getEffectiveRiskScore(i.risk_assessment) >= 80
   ).length;
   const lowRiskCount = items.filter(
-    (i) => getEffectiveRiskScore(i.risk_assessment) < 0.30
+    (i) => getEffectiveRiskScore(i.risk_assessment) < 30
   ).length;
 
   const riskRate = totalCount > 0 ? ((highRiskCount / totalCount) * 100).toFixed(1) : '0.0';
   const amountAtRisk = items
-    .filter((i) => getEffectiveRiskScore(i.risk_assessment) >= 0.60)
+    .filter((i) => getEffectiveRiskScore(i.risk_assessment) >= 60)
     .reduce((sum, i) => sum + i.transaction.amount, 0);
 
   return (
@@ -248,7 +248,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectTransaction }) => 
                 </thead>
                 <tbody>
                   {items.slice(0, 10).map((item) => {
-                    const score = item.risk_assessment.verifier_risk_score ?? item.risk_assessment.risk_score ?? 0;
+                    const score = getEffectiveRiskScore(item.risk_assessment);
                     return (
                       <tr
                         key={item.transaction.transaction_id}
@@ -261,7 +261,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectTransaction }) => 
                           {item.transaction.currency} {item.transaction.amount.toFixed(2)}
                         </td>
                         <td>
-                          <span style={styles.scoreCell}>{(score * 100).toFixed(0)} / 100</span>
+                          <span style={styles.scoreCell}>{formatRiskScore(score)} / 100</span>
                         </td>
                         <td>
                           <RiskBadge score={score} />

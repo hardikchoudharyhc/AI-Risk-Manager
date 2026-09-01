@@ -134,12 +134,19 @@ export interface CustomerRef {
 
 export function getEffectiveRiskScore(ra?: RiskAssessment | null): number {
   if (!ra) return 0;
+  let s = 0;
   if (typeof ra.risk_score === 'number' && !isNaN(ra.risk_score)) {
-    return ra.risk_score;
+    s = ra.risk_score;
+  } else if (typeof ra.verifier_risk_score === 'number' && !isNaN(ra.verifier_risk_score)) {
+    s = ra.verifier_risk_score;
   }
-  if (typeof ra.verifier_risk_score === 'number' && !isNaN(ra.verifier_risk_score)) {
-    return ra.verifier_risk_score;
-  }
-  return 0;
+  return s <= 1.0 && s > 0.0 ? s * 100.0 : s;
 }
+
+export function formatRiskScore(score: number): string {
+  if (typeof score !== 'number' || isNaN(score)) return '0';
+  const canonical = score <= 1.0 && score > 0.0 ? score * 100.0 : score;
+  return canonical % 1 === 0 ? canonical.toFixed(0) : canonical.toFixed(1);
+}
+
 

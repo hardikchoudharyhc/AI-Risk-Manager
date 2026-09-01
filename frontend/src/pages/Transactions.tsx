@@ -6,7 +6,7 @@ import { LoadingState } from '../components/LoadingState';
 import { ErrorState } from '../components/ErrorState';
 import { EmptyState } from '../components/EmptyState';
 import { fetchTransactions } from '../services/api';
-import { ProcessResultItem, getEffectiveRiskScore } from '../types';
+import { ProcessResultItem, getEffectiveRiskScore, formatRiskScore } from '../types';
 
 interface TransactionsProps {
   onSelectTransaction: (id: string) => void;
@@ -180,7 +180,7 @@ export const Transactions: React.FC<TransactionsProps> = ({ onSelectTransaction,
                       <td>
                         <SourceBadge source={item.source_type} />
                       </td>
-                      <td style={styles.scoreCell}>{(score * 100).toFixed(0)} / 100</td>
+                      <td style={styles.scoreCell}>{formatRiskScore(score)} / 100</td>
                       <td>
                         <RiskBadge score={score} />
                       </td>

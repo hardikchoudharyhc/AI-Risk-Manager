@@ -306,19 +306,60 @@ def test_score_mapping_policy_and_edge_cases():
 
 def test_to_canonical_risk_score_conversions():
     """Regression test proving single-point conversions at risk-engine boundary:
-    0.0 -> 0
-    0.3 -> 30
-    0.5433 -> 54.33
-    0.806 -> 80.6
-    1.0 -> 100
+    0, 0.5, 17.5, 29, 30, 54.33, 59, 60, 69.9, 79, 80, 80.89, 100
     """
     from risk_manager.decision.engine import to_canonical_risk_score
 
+    # Probabilities in 0-1 scale converted to 0-100 canonical scale
     assert to_canonical_risk_score(0.0) == 0
-    assert to_canonical_risk_score(0.3) == 30
+    assert to_canonical_risk_score(0.005) == 0.5
+    assert to_canonical_risk_score(0.175) == 17.5
+    assert to_canonical_risk_score(0.29) == 29
+    assert to_canonical_risk_score(0.30) == 30
     assert to_canonical_risk_score(0.5433) == 54.33
-    assert to_canonical_risk_score(0.806) == 80.6
+    assert to_canonical_risk_score(0.59) == 59
+    assert to_canonical_risk_score(0.60) == 60
+    assert to_canonical_risk_score(0.699) == 69.9
+    assert to_canonical_risk_score(0.79) == 79
+    assert to_canonical_risk_score(0.80) == 80
+    assert to_canonical_risk_score(0.8089) == 80.89
     assert to_canonical_risk_score(1.0) == 100
+
+    # Values already on 0-100 scale (> 1.0 or 0)
+    assert to_canonical_risk_score(0) == 0
+    assert to_canonical_risk_score(17.5) == 17.5
+    assert to_canonical_risk_score(29) == 29
+    assert to_canonical_risk_score(30) == 30
+    assert to_canonical_risk_score(54.33) == 54.33
+    assert to_canonical_risk_score(59) == 59
+    assert to_canonical_risk_score(60) == 60
+    assert to_canonical_risk_score(69.9) == 69.9
+    assert to_canonical_risk_score(79) == 79
+    assert to_canonical_risk_score(80) == 80
+    assert to_canonical_risk_score(80.89) == 80.89
+    assert to_canonical_risk_score(100) == 100
+
+
+def test_80_89_risk_score_regression():
+    """Specifically test risk_score=80.89 mapping:
+    -> displayed score formatted as 80.9 / 100
+    -> risk level = CRITICAL
+    -> decision = BLOCK
+    """
+    from risk_manager.decision.engine import map_risk_score_to_level_and_decision, to_canonical_risk_score
+
+    canonical_score = to_canonical_risk_score(80.89)
+    level, decision = map_risk_score_to_level_and_decision(canonical_score)
+
+    assert canonical_score == 80.89
+    assert level == "CRITICAL"
+    assert decision == "BLOCK"
+
+    # Display formatting: single decimal rounding -> 80.9
+    formatted_score = f"{canonical_score:.1f}" if canonical_score % 1 != 0 else f"{int(canonical_score)}"
+    assert formatted_score == "80.9"
+    assert f"{formatted_score} / 100" == "80.9 / 100"
+
 
 
 

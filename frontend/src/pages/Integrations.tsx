@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Header } from '../components/Header';
+import { RiskBadge } from '../components/RiskBadge';
 import { connectRazorpay, syncRazorpay, fetchRazorpayStatus, sendRazorpayOutbound } from '../services/api';
 import { RazorpayStatus, ProcessResultItem, getEffectiveRiskScore } from '../types';
 
@@ -167,7 +168,7 @@ export const Integrations: React.FC<IntegrationsProps> = ({ onSelectTransaction 
                     {item.transaction.currency} {item.transaction.amount.toFixed(2)}
                   </td>
                   <td>{item.transaction.payment_method}</td>
-                  <td>{(getEffectiveRiskScore(item.risk_assessment) * 100).toFixed(1)}%</td>
+                  <td><RiskBadge score={getEffectiveRiskScore(item.risk_assessment)} /></td>
                   <td>{item.decision.final_decision}</td>
                   <td style={styles.monoCell}>{item.response.action_code}</td>
                   <td>

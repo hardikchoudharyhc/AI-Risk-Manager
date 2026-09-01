@@ -39,8 +39,8 @@ export const RiskQueue: React.FC<RiskQueueProps> = ({ onSelectTransaction }) => 
   const filteredQueue = queue.filter((item) => {
     const score = getEffectiveRiskScore(item.risk_assessment);
     const dec = item.decision.final_decision;
-    if (tab === 'CRITICAL') return score >= 0.80;
-    if (tab === 'HIGH') return score >= 0.60 && score < 0.80;
+    if (tab === 'CRITICAL') return score >= 80;
+    if (tab === 'HIGH') return score >= 60 && score < 80;
     if (tab === 'MANUAL_REVIEW') return dec === 'MANUAL_REVIEW' || dec === 'MONITOR';
     return true;
   });

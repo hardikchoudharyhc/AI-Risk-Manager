@@ -12,7 +12,7 @@ export const RiskBadge: React.FC<RiskBadgeProps> = ({ score, level, decision }) 
   let color = '#475569';
 
   if (score !== undefined) {
-    const s = score > 1.0 ? score : score * 100;
+    const s = score <= 1.0 && score > 0 ? score * 100 : score;
     if (s >= 80) {
       displayLevel = 'CRITICAL';
       bg = '#FEE2E2';
@@ -95,7 +95,7 @@ export const RiskBadge: React.FC<RiskBadgeProps> = ({ score, level, decision }) 
           backgroundColor: color,
         }}
       />
-      {displayLevel} {score !== undefined ? `(${(score > 1 ? score : score * 100).toFixed(0)}%)` : ''}
+      {displayLevel} {score !== undefined ? `(${((score <= 1.0 && score > 0) ? score * 100 : score).toFixed(0)}%)` : ''}
     </span>
   );
 };

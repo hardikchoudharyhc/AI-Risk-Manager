@@ -5,7 +5,7 @@ import { LoadingState } from '../components/LoadingState';
 import { ErrorState } from '../components/ErrorState';
 import { EmptyState } from '../components/EmptyState';
 import { fetchTransactions } from '../services/api';
-import { ProcessResultItem, CustomerRef } from '../types';
+import { ProcessResultItem, CustomerRef, getEffectiveRiskScore, formatRiskScore } from '../types';
 
 interface CustomersProps {
   onSelectTransaction?: (id: string) => void;
@@ -39,14 +39,14 @@ export const Customers: React.FC<CustomersProps> = ({ onSelectTransaction }) => 
 
   const customers: CustomerRef[] = Array.from(customerMap.entries()).map(([cid, txns]) => {
     const totalVolume = txns.reduce((sum, t) => sum + t.transaction.amount, 0);
-    const scores = txns.map((t) => t.risk_assessment.verifier_risk_score ?? t.risk_assessment.risk_score ?? 0);
+    const scores = txns.map((t) => getEffectiveRiskScore(t.risk_assessment));
     const avgScore = scores.reduce((a, b) => a + b, 0) / (scores.length || 1);
     const maxScore = Math.max(...scores, 0);
 
     let maxLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' = 'LOW';
-    if (maxScore >= 0.80) maxLevel = 'CRITICAL';
-    else if (maxScore >= 0.60) maxLevel = 'HIGH';
-    else if (maxScore >= 0.30) maxLevel = 'MEDIUM';
+    if (maxScore >= 80) maxLevel = 'CRITICAL';
+    else if (maxScore >= 60) maxLevel = 'HIGH';
+    else if (maxScore >= 30) maxLevel = 'MEDIUM';
 
     const sortedTxns = [...txns].sort(
       (a, b) => new Date(b.transaction.timestamp).getTime() - new Date(a.transaction.timestamp).getTime()
@@ -70,7 +70,7 @@ export const Customers: React.FC<CustomersProps> = ({ onSelectTransaction }) => 
     const customerTxns = customerMap.get(selectedCustomerId) || [];
     const customerData = customers.find((c) => c.customer_id === selectedCustomerId);
     const highRiskTxns = customerTxns.filter(
-      (t) => (t.risk_assessment.verifier_risk_score ?? t.risk_assessment.risk_score ?? 0) >= 0.60
+      (t) => getEffectiveRiskScore(t.risk_assessment) >= 60
     );
 
     return (
@@ -95,7 +95,7 @@ export const Customers: React.FC<CustomersProps> = ({ onSelectTransaction }) => 
             <h3 style={styles.cardTitle}>Current Risk Status</h3>
             <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
               <div style={{ fontSize: '2rem', fontWeight: 700, color: '#0F172A' }}>
-                {( (customerData?.avg_risk_score ?? 0) * 100).toFixed(0)} / 100
+                {formatRiskScore(customerData?.avg_risk_score ?? 0)} / 100
               </div>
               <RiskBadge level={customerData?.max_risk_level} />
             </div>
@@ -209,7 +209,7 @@ export const Customers: React.FC<CustomersProps> = ({ onSelectTransaction }) => 
                     <td style={styles.customerCell}>{c.customer_id}</td>
                     <td style={styles.boldCell}>{c.transaction_count}</td>
                     <td style={styles.boldCell}>${c.total_volume.toFixed(2)}</td>
-                    <td style={styles.scoreCell}>{(c.avg_risk_score * 100).toFixed(0)} / 100</td>
+                    <td style={styles.scoreCell}>{formatRiskScore(c.avg_risk_score)} / 100</td>
                     <td>
                       <RiskBadge level={c.max_risk_level} />
                     </td>

@@ -4,7 +4,7 @@ import { MetricCard } from '../components/MetricCard';
 import { LoadingState } from '../components/LoadingState';
 import { ErrorState } from '../components/ErrorState';
 import { fetchTransactions } from '../services/api';
-import { ProcessResultItem } from '../types';
+import { ProcessResultItem, getEffectiveRiskScore } from '../types';
 
 export const Analytics: React.FC = () => {
   const [items, setItems] = useState<ProcessResultItem[]>([]);
@@ -28,10 +28,10 @@ export const Analytics: React.FC = () => {
 
   const totalVolume = items.length;
   const highRiskCount = items.filter(
-    (i) => (i.risk_assessment.verifier_risk_score ?? i.risk_assessment.risk_score ?? 0) >= 0.60
+    (i) => getEffectiveRiskScore(i.risk_assessment) >= 60
   ).length;
   const criticalCount = items.filter(
-    (i) => (i.risk_assessment.verifier_risk_score ?? i.risk_assessment.risk_score ?? 0) >= 0.80
+    (i) => getEffectiveRiskScore(i.risk_assessment) >= 80
   ).length;
   const manualReviews = items.filter(
     (i) => i.decision.final_decision === 'MANUAL_REVIEW' || i.decision.final_decision === 'MONITOR'
@@ -42,7 +42,7 @@ export const Analytics: React.FC = () => {
 
   const riskRate = totalVolume > 0 ? ((highRiskCount / totalVolume) * 100).toFixed(1) : '0.0';
   const amountAtRisk = items
-    .filter((i) => (i.risk_assessment.verifier_risk_score ?? i.risk_assessment.risk_score ?? 0) >= 0.60)
+    .filter((i) => getEffectiveRiskScore(i.risk_assessment) >= 60)
     .reduce((sum, i) => sum + i.transaction.amount, 0);
 
   // Breakdown by Source
