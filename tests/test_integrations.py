@@ -1,3 +1,4 @@
+import json
 import pytest
 from fastapi.testclient import TestClient
 
@@ -665,6 +666,87 @@ def test_razorpay_real_test_mode_end_to_end_pipeline():
         assert sync_res_2.status_code == 200
         assert sync_res_2.json()["duplicates"] == 2
         assert sync_res_2.json()["inserted"] == 0
+
+        # 5. Diagnostic Endpoint Verification
+        diag_res = client.get("/api/integrations/razorpay/diagnostic")
+        assert diag_res.status_code == 200
+        diag_data = diag_res.json()
+        assert diag_data["RAZORPAY MODE"] == "TEST"
+        assert diag_data["API HOST"] == "api.razorpay.com"
+        assert diag_data["AUTHENTICATION"] == "SUCCESS"
+        assert diag_data["PAYMENTS RETRIEVED"] == 2
+        assert diag_data["PAYMENT IDS"] == ["pay_RZP_TEST_E2E_101", "pay_RZP_TEST_E2E_102"]
+        assert "key_secret" not in json.dumps(diag_data)
+        assert "EndToEndSecret_abc789" not in json.dumps(diag_data)
+
+
+def test_strict_no_mock_leakage_in_real_test_mode():
+    """
+    CRITICAL HARDENING TEST:
+    Must FAIL if any pay_RZP_MOCK_* or mock fixture is received when is_mock is False.
+    """
+    from unittest.mock import patch, MagicMock
+
+    real_api_payments = {
+        "entity": "collection",
+        "count": 2,
+        "items": [
+            {
+                "id": "pay_REAL_RZP_TEST_9901",
+                "entity": "payment",
+                "amount": 250000, # ₹2,500.00
+                "currency": "INR",
+                "status": "captured",
+                "method": "card",
+                "email": "user9901@example.com",
+                "created_at": 1700000500
+            },
+            {
+                "id": "pay_REAL_RZP_TEST_9902",
+                "entity": "payment",
+                "amount": 999900, # ₹9,999.00
+                "currency": "INR",
+                "status": "captured",
+                "method": "upi",
+                "email": "user9902@example.com",
+                "created_at": 1700000600
+            }
+        ]
+    }
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = real_api_payments
+
+    mock_client_instance = MagicMock()
+    mock_client_instance.get.return_value = mock_resp
+
+    with patch("risk_manager.integrations.razorpay.adapter.httpx.Client") as MockClientClass:
+        MockClientClass.return_value.__enter__.return_value = mock_client_instance
+
+        # Connect with real test key
+        conn_res = client.post("/integrations/razorpay/connect", json={
+            "key_id": "rzp_test_StrictNoMockKey",
+            "key_secret": "StrictSecret_123456",
+            "merchant_id": "merchant_strict_test"
+        })
+        assert conn_res.status_code == 200
+        conn_id = conn_res.json()["connection_id"]
+
+        sync_res = client.post("/integrations/razorpay/sync", json={
+            "connection_id": conn_id,
+            "count": 10
+        })
+        assert sync_res.status_code == 200
+        pipeline_results = sync_res.json()["pipeline_results"]
+
+        for res in pipeline_results:
+            txn_id = res["transaction"]["transaction_id"]
+            # STRICT ASSERTION: Absolutely no mock payment IDs in real test mode
+            assert not txn_id.startswith("pay_RZP_MOCK_"), f"STRICT FAILURE: Mock ID {txn_id} found in real Razorpay Test Mode!"
+            assert not txn_id.startswith("TXN-"), f"STRICT FAILURE: Synthetic demo ID {txn_id} found in real Razorpay Test Mode!"
+            assert txn_id.startswith("pay_REAL_RZP_TEST_"), f"STRICT FAILURE: Unexpected payment ID format: {txn_id}"
+
 
 
 

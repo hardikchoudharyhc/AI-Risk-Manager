@@ -7,20 +7,20 @@ interface PipelineTrackerProps {
 
 export const PipelineTracker: React.FC<PipelineTrackerProps> = ({ currentStage = 9, results }) => {
   const stages = [
-    { code: 'M1', title: 'Detection', desc: 'RF Classifier' },
-    { code: 'M2', title: 'Verification', desc: 'SHAP & Evidence' },
-    { code: 'M3', title: 'Scoring', desc: 'Composite Risk' },
-    { code: 'M4', title: 'Decision', desc: 'Cost-Loss Engine' },
-    { code: 'M5', title: 'Responder', desc: 'Defensive Action' },
-    { code: 'M6', title: 'Audit', desc: 'Immutable Log' },
-    { code: 'M7', title: 'Feedback', desc: 'Label Sync' },
-    { code: 'M8', title: 'Adaptive', desc: 'Model Update' },
-    { code: 'M9', title: 'Compliance', desc: 'Policy Check' },
+    { code: '01', title: 'Detection', desc: 'Classifier' },
+    { code: '02', title: 'Verification', desc: 'SHAP & Evidence' },
+    { code: '03', title: 'Scoring', desc: 'Composite Risk' },
+    { code: '04', title: 'Decision', desc: 'Cost-Loss Engine' },
+    { code: '05', title: 'Responder', desc: 'Defensive Action' },
+    { code: '06', title: 'Audit', desc: 'Immutable Log' },
+    { code: '07', title: 'Feedback', desc: 'Label Sync' },
+    { code: '08', title: 'Adaptive', desc: 'Model Update' },
+    { code: '09', title: 'Compliance', desc: 'Policy Check' },
   ];
 
   return (
     <div style={styles.container}>
-      <div style={styles.header}>M1–M9 Risk Intelligence Pipeline Execution</div>
+      <div style={styles.header}>Risk Intelligence Pipeline Execution</div>
       <div style={styles.stagesGrid}>
         {stages.map((stage, idx) => {
           const isComplete = idx + 1 <= currentStage;

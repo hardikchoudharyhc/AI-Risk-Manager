@@ -5,13 +5,13 @@ export const RiskModels: React.FC = () => {
   return (
     <div>
       <Header
-        title="Risk Models & Verifiers (M1 / M2)"
+        title="Risk Models & Verifiers"
         subtitle="Random Forest Classifiers, SHAP feature importance, and heuristic domain verifiers."
       />
 
       <div style={styles.grid}>
         <div style={styles.card}>
-          <div style={styles.cardHeader}>M1 Detector Classifier</div>
+          <div style={styles.cardHeader}>Fraud Detector Classifier</div>
           <div style={styles.row}><span>Model Type:</span> <strong>Random Forest (Balanced)</strong></div>
           <div style={styles.row}><span>Version:</span> <strong>detector-rf-1.0</strong></div>
           <div style={styles.row}><span>Accuracy:</span> <strong>98.2%</strong></div>
@@ -19,7 +19,7 @@ export const RiskModels: React.FC = () => {
         </div>
 
         <div style={styles.card}>
-          <div style={styles.cardHeader}>M2 Verification Modules</div>
+          <div style={styles.cardHeader}>Verification Modules</div>
           <div style={styles.row}><span>Return Abuse Verifier:</span> <strong style={{ color: '#166534' }}>ACTIVE</strong></div>
           <div style={styles.row}><span>Transaction Fraud Verifier:</span> <strong style={{ color: '#166534' }}>ACTIVE</strong></div>
           <div style={styles.row}><span>Fraud Spike Verifier:</span> <strong style={{ color: '#166534' }}>ACTIVE</strong></div>

@@ -898,7 +898,10 @@ def sync_razorpay(req: RazorpaySyncRequest):
     if not conn:
         conns = registry.list_connections()
         rzp_conns = [c for c in conns if c.provider == "razorpay"]
-        if rzp_conns:
+        real_conns = [c for c in rzp_conns if not c.metadata.get("is_mock")]
+        if real_conns:
+            conn = real_conns[-1]
+        elif rzp_conns:
             conn = rzp_conns[-1]
 
     if not conn:
@@ -975,6 +978,27 @@ def get_razorpay_status():
         "total_analyzed": rzp_analyzed,
         "outbound_status": "Active",
     }
+
+
+@app.get("/api/integrations/razorpay/diagnostic")
+def get_razorpay_diagnostic():
+    conns = registry.list_connections()
+    rzp_conns = [c for c in conns if c.provider == "razorpay"]
+    if not rzp_conns:
+        return {
+            "RAZORPAY MODE": "DISCONNECTED",
+            "API HOST": "api.razorpay.com",
+            "AUTHENTICATION": "FAIL",
+            "PAYMENTS RETRIEVED": 0,
+            "PAYMENT IDS": [],
+            "message": "No active Razorpay connection configured."
+        }
+    c = rzp_conns[-1]
+    provider_inst = registry.get_provider("razorpay")
+    if not provider_inst:
+        raise HTTPException(status_code=500, detail="Razorpay provider not found.")
+    return provider_inst.get_diagnostic_report(c)
+
 
 
 

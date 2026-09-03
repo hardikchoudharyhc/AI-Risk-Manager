@@ -10,8 +10,12 @@ export const SourceBadge: React.FC<SourceBadgeProps> = ({ source = 'csv' }) => {
   let bg = '#F1F5F9';
   let color = '#475569';
 
-  if (s.includes('razorpay')) {
-    label = 'Razorpay';
+  if (s.includes('mock') || s.includes('demo')) {
+    label = 'DEMO / MOCK';
+    bg = '#FEF3C7';
+    color = '#B45309';
+  } else if (s.includes('razorpay')) {
+    label = 'Razorpay Gateway';
     bg = '#E0F2FE';
     color = '#0369A1';
   } else if (s.includes('shopify')) {

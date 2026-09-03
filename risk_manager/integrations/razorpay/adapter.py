@@ -145,7 +145,7 @@ class RazorpayProvider(IntegrationProvider):
         key_secret = getattr(connection, "encrypted_credentials", None) or ""
 
         if not key_id or not key_secret:
-            return []
+            raise ValueError("Missing Razorpay Key ID or Key Secret on active connection.")
 
         all_items: list[dict[str, Any]] = []
         current_skip = skip
@@ -300,3 +300,39 @@ class RazorpayProvider(IntegrationProvider):
             "acknowledgements": acknowledgements,
             "message": f"Batch of {success_count}/{len(risk_results)} risk results delivered to {self.provider_name}",
         }
+
+    def get_diagnostic_report(self, connection: MerchantConnection) -> dict[str, Any]:
+        """
+        Generate explicit integration diagnostic matching strict validation requirements.
+        Never exposes key_secret.
+        """
+        is_mock = connection.metadata.get("is_mock", False)
+        mode = "MOCK" if is_mock else "TEST" if str(connection.metadata.get("key_id", "")).startswith("rzp_test_") else "LIVE"
+        host = "api.razorpay.com"
+
+        valid, msg = self.validate_connection(connection)
+        auth_status = "SUCCESS" if valid else f"FAIL: {msg}"
+
+        payments = self.fetch_historical_data(connection, limit=50)
+        payment_ids = [p["id"] for p in payments if isinstance(p, dict) and "id" in p]
+
+        if not is_mock:
+            mock_ids = [pid for pid in payment_ids if pid.startswith("pay_RZP_MOCK_")]
+            if mock_ids:
+                raise ValueError(f"STRICT INTEGRATION VIOLATION: Mock payment IDs {mock_ids} returned in REAL RAZORPAY TEST MODE!")
+
+        status_msg = (
+            "Razorpay authentication succeeded but the account contains zero retrievable test payments."
+            if len(payment_ids) == 0 and not is_mock
+            else f"Retrieved {len(payment_ids)} payment record(s) from Razorpay."
+        )
+
+        return {
+            "RAZORPAY MODE": mode,
+            "API HOST": host,
+            "AUTHENTICATION": auth_status,
+            "PAYMENTS RETRIEVED": len(payment_ids),
+            "PAYMENT IDS": payment_ids,
+            "message": status_msg,
+        }
+

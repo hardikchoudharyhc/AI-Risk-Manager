@@ -81,7 +81,7 @@ export const DataSources: React.FC<DataSourcesProps> = ({ onSelectTransaction, o
       await new Promise((r) => setTimeout(r, 400));
       setSyncStep('analyzing');
 
-      const res = await syncRazorpay();
+      const res = await syncRazorpay({ connection_id: rzpStatus?.connection_id });
 
       const results: ProcessResultItem[] = res.pipeline_results || [];
       const flagged = results.filter(
@@ -182,7 +182,7 @@ export const DataSources: React.FC<DataSourcesProps> = ({ onSelectTransaction, o
               <span style={styles.metricValue}>{rzpStatus?.total_fetched || 0}</span>
             </div>
             <div style={styles.metricRow}>
-              <span style={styles.metricLabel}>Analyzed by M1–M9:</span>
+              <span style={styles.metricLabel}>Analyzed by Risk Engine:</span>
               <span style={styles.metricValue}>{rzpStatus?.total_analyzed || 0}</span>
             </div>
             <div style={styles.metricRow}>
@@ -352,7 +352,7 @@ export const DataSources: React.FC<DataSourcesProps> = ({ onSelectTransaction, o
                   <span style={styles.stepBadge}>4</span> Pydantic Security & Deduplication Validation
                 </div>
                 <div style={styles.stepItem(['analyzing', 'complete'].includes(syncStep))}>
-                  <span style={styles.stepBadge}>5</span> M1–M9 Risk Engine Evaluation
+                  <span style={styles.stepBadge}>5</span> AI Risk Engine Evaluation
                 </div>
               </div>
 
@@ -378,7 +378,7 @@ export const DataSources: React.FC<DataSourcesProps> = ({ onSelectTransaction, o
                     </div>
                     <div style={styles.mTile}>
                       <span style={styles.mVal}>{syncMetrics.analyzed}</span>
-                      <span style={styles.mLbl}>M1–M9 Evaluated</span>
+                      <span style={styles.mLbl}>Engine Evaluated</span>
                     </div>
                     <div style={{ ...styles.mTile, backgroundColor: '#FEF3F2' }}>
                       <span style={{ ...styles.mVal, color: '#D92D20' }}>{syncMetrics.riskFlagged}</span>

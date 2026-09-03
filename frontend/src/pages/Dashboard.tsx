@@ -85,14 +85,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectTransaction }) => 
           <div style={styles.kpiGrid}>
             <MetricCard
               title="Transactions"
-              value={totalCount > 0 ? totalCount.toLocaleString() : '1,248'}
+              value={totalCount.toLocaleString()}
               change="+8.4%"
               changeType="positive"
               description="vs previous period"
             />
             <MetricCard
               title="High Risk"
-              value={highRiskCount > 0 ? highRiskCount.toLocaleString() : '42'}
+              value={highRiskCount.toLocaleString()}
               change="-2.1%"
               changeType="positive"
               description="vs previous period"
@@ -106,7 +106,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectTransaction }) => 
             />
             <MetricCard
               title="Amount at Risk"
-              value={`$${amountAtRisk > 0 ? amountAtRisk.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '14,850.00'}`}
+              value={`INR ${amountAtRisk.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
               change="+4.2%"
               changeType="negative"
               description="vs previous period"

@@ -55,7 +55,7 @@ export const UnifiedPipeline: React.FC<UnifiedPipelineProps> = ({ onSelectTransa
       <div style={styles.header}>
         <h1 style={styles.pageTitle}>Unified Ingestion Pipeline</h1>
         <p style={styles.pageSubtitle}>
-          Single architectural pathway for CSV, JSON, manual paste, and provider API adapters converging into canonical schema & M1–M9.
+          Single architectural pathway for CSV, JSON, manual paste, and provider API adapters converging into canonical schema & Risk Engine.
         </p>
       </div>
 
@@ -87,8 +87,8 @@ export const UnifiedPipeline: React.FC<UnifiedPipelineProps> = ({ onSelectTransa
         </div>
         <span style={styles.stageArrow}>➔</span>
         <div style={styles.stageNode}>
-          <span style={styles.stageTitle}>6. M1–M9</span>
-          <span style={styles.stageSub}>Risk Engine</span>
+          <span style={styles.stageTitle}>6. RISK ENGINE</span>
+          <span style={styles.stageSub}>AI Risk Evaluation</span>
         </div>
         <span style={styles.stageArrow}>➔</span>
         <div style={styles.stageNode}>

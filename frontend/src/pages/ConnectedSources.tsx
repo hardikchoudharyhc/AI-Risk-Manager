@@ -43,8 +43,9 @@ export const ConnectedSources: React.FC<ConnectedSourcesProps> = ({
     setSyncing(true);
     setMessage(null);
     try {
-      const res = await syncRazorpay({ count: 20 });
-      setMessage(`Successfully synced ${res.fetched_count} mock Razorpay transactions.`);
+      const res = await syncRazorpay({ connection_id: rzpStatus?.connection_id, count: 20 });
+      const syncedCount = res.synced_records ?? res.fetched ?? 0;
+      setMessage(`Successfully synced ${syncedCount} Razorpay transactions into risk engine.`);
       loadStatus();
     } catch (err: any) {
       setError(err.message);

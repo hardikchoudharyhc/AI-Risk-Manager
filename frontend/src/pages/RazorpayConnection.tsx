@@ -23,8 +23,8 @@ export const RazorpayConnection: React.FC<RazorpayConnectionProps> = ({
   const [message, setMessage] = useState<string | null>(null);
 
   // Inputs
-  const [keyId, setKeyId] = useState('rzp_test_mock_123456');
-  const [keySecret, setKeySecret] = useState('mock_secret_key_7890');
+  const [keyId, setKeyId] = useState('');
+  const [keySecret, setKeySecret] = useState('');
 
   const loadStatus = () => {
     setLoading(true);
@@ -71,7 +71,7 @@ export const RazorpayConnection: React.FC<RazorpayConnectionProps> = ({
     setMessage(null);
 
     try {
-      const res = await syncRazorpay({ count: 50 });
+      const res = await syncRazorpay({ connection_id: status?.connection_id, count: 50 });
       const syncedCount = res.synced_records ?? res.fetched ?? 0;
       const inserted = res.inserted ?? syncedCount;
       const dups = res.duplicates ?? 0;
