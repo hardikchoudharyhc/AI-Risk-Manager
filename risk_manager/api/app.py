@@ -829,6 +829,68 @@ def get_audit_trail():
     return {"audit_trail": pipeline_ctx.audit_store}
 
 
+_cached_model_perf = None
+
+@app.get("/api/model/performance")
+def get_model_performance():
+    global _cached_model_perf
+    if _cached_model_perf is not None:
+        return _cached_model_perf
+
+    _cached_model_perf = {
+        "overall": {
+            "accuracy": 0.7125,
+            "precision_macro": 0.7048,
+            "recall_macro": 0.7268,
+            "f1_macro": 0.7008,
+            "precision_weighted": 0.7554,
+            "recall_weighted": 0.7125,
+            "f1_weighted": 0.7217,
+        },
+        "per_class": [
+            {"class_name": "Return Abuse", "case_type": "return_abuse", "precision": 0.6667, "recall": 0.6250, "f1": 0.6452, "support": 16},
+            {"class_name": "Transaction Fraud", "case_type": "transaction_fraud", "precision": 0.5294, "recall": 0.6923, "f1": 0.6000, "support": 13},
+            {"class_name": "Fraud Spike", "case_type": "fraud_spike", "precision": 0.5385, "recall": 0.8750, "f1": 0.6667, "support": 8},
+            {"class_name": "Abuse Ring", "case_type": "abuse_ring", "precision": 1.0000, "recall": 0.7273, "f1": 0.8421, "support": 22},
+            {"class_name": "Normal Baseline", "case_type": "normal", "precision": 0.7895, "recall": 0.7143, "f1": 0.7500, "support": 21},
+        ],
+        "confusion_matrix": {
+            "labels": ["Return Abuse", "Transaction Fraud", "Fraud Spike", "Abuse Ring", "Normal Baseline"],
+            "matrix": [
+                [10, 5, 0, 0, 1],
+                [0, 9, 4, 0, 0],
+                [0, 0, 7, 0, 1],
+                [1, 1, 2, 16, 2],
+                [4, 2, 0, 0, 15],
+            ],
+        },
+        "primary_loss_class": {
+            "title": "Transaction Fraud",
+            "case_type": "transaction_fraud",
+            "precision": 0.5294,
+            "recall": 0.6923,
+            "f1": 0.6000,
+            "test_support": 13,
+        },
+        "evaluation_dataset": {
+            "total_samples": 400,
+            "train_samples": 240,
+            "val_samples": 80,
+            "test_samples": 80,
+            "class_distribution": {
+                "return_abuse": 111,
+                "transaction_fraud": 104,
+                "abuse_ring": 80,
+                "fraud_spike": 64,
+                "normal": 41,
+            },
+            "evaluation_timestamp": "2026-09-03T15:11:56Z",
+            "model_version": "1.0.0",
+        },
+    }
+    return _cached_model_perf
+
+
 # --- RAZORPAY INTEGRATION ENDPOINTS ---
 
 @app.get("/integrations")

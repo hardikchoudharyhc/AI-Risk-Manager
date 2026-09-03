@@ -114,3 +114,9 @@ export async function sendRazorpayOutbound(params: { connection_id?: string; res
   }
   return res.json();
 }
+
+export async function fetchModelPerformance() {
+  const res = await fetch(`${API_BASE}/model/performance`);
+  if (!res.ok) throw new Error('Failed to fetch model performance metrics');
+  return res.json();
+}
